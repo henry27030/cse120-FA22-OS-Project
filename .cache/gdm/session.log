@@ -1,0 +1,9 @@
+/public/profile.adjunct: line 12: /public/announcements: No such file or directory
+/public/profile.adjunct: line 14: module: command not found
+touch: cannot touch ‘/home/linux/ieng6/oce/91/h2lam/.cache/imsettings/log’: No such file or directory
+stdin: is not a tty
+/public/bash_profile.adjunct: line 10: /public/announcements: No such file or directory
+ 
+
+To see all available software packages, type "prep -l" at the command prompt,
+or "prep -h" for more options.

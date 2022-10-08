@@ -1,0 +1,6 @@
+if ( ! ${?DT} ) then
+    # DT is not set, this is not a CDE session start up.
+    #
+    if (-e ~/../public/broadcast) more -d ~/../public/broadcast
+
+endif
