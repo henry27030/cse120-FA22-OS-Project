@@ -14,7 +14,7 @@ import java.util.PriorityQueue;
  */
 public class Alarm {
 
-	//define Pair Comparator for waitList
+	//define Pair Comparatable for waitList
 	private class Pair implements Comparable<Pair> {
 		private long waitTime;
 		private KThread KThread;
@@ -34,12 +34,9 @@ public class Alarm {
 
 		@Override
 		public int compareTo(Pair pair1) {
-			//return Long.valueOf(pair1.getWaitTime()).compareTo(Long.valueOf(pair2.getWaitTime()));
       return (int)this.getWaitTime()-(int)pair1.getWaitTime();
 		}
 	}
-		//private ArrayList<Pair> array = new ArrayList<Pair>();
-
 
 	//a list of threads that are currently asleep (blocked) with their wait timers
 	private PriorityQueue<Pair> waitList;
@@ -100,7 +97,6 @@ public class Alarm {
 		// for now, cheat just to get something working (busy waiting is bad)
 		long wakeTime = Machine.timer().getTime() + x; //time to match with global timer to know to wake
 		//add pair current thread with wake time to waitList
-		//array.add(new Pair(KThread.currentThread(), wakeTime));
 		waitList.add(new Pair(KThread.currentThread(), wakeTime));
 		KThread.sleep();
 		Machine.interrupt().restore(intStatus);
