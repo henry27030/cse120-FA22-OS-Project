@@ -285,6 +285,21 @@ public class KThread {
 
 		Lib.assertTrue(this != currentThread);
 
+		boolean initStatus = Machine.interrupt().disable();
+
+		if (status != statusFinished) { //if status of this thread A is not finished
+			if (waitList == null) {
+				waitList = ThreadedKernel.scheduler.newThreadQueue(true); //make a new thread queue
+				//we use threadqueue because there are two threads at play here and only 1 can run at a time
+				//so we need to manage who has permission when tho i will say my naming scheme can prolly be changed
+				//check the ThreadQueue.java description
+				waitList.acquire(this);  //this thread, thread A, has received access to execute
+			}
+			waitList.waitForAccess(currentThread); //current thread which is thread B will wait for this thread A to finish executing
+			currentThread.sleep(); //sleep B until A is finished
+		}
+
+		Machine.interrupt().restore(initStatus);
 	}
 
 	/**
@@ -465,4 +480,34 @@ public class KThread {
 	private static KThread toBeDestroyed = null;
 
 	private static KThread idleThread = null;
+ 
+	private ThreadQueue waitList = null;
+    // Place Join test code in the KThread class and invoke test methods
+    // from KThread.selfTest().
+    
+    // Simple test for the situation where the child finishes before
+    // the parent calls join on it.
+    
+    public static void joinTest1 () {
+	KThread child1 = new KThread( new Runnable () {
+		public void run() {
+		    System.out.println("I (heart) Nachos!");
+		}
+	    });
+	child1.setName("child1").fork();
+
+	// We want the child to finish before we call join.  Although
+	// our solutions to the problems cannot busy wait, our test
+	// programs can!
+
+	for (int i = 0; i < 5; i++) {
+	    System.out.println ("busy...");
+	    KThread.currentThread().yield();
+	}
+
+	child1.join();
+	System.out.println("After joining, child1 should be finished.");
+	System.out.println("is it? " + (child1.status == statusFinished));
+	Lib.assertTrue((child1.status == statusFinished), " Expected child1 to be finished.");
+    }
 }
