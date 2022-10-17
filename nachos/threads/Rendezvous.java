@@ -2,7 +2,7 @@ package nachos.threads;
 
 import nachos.machine.*;
 import java.util.HashMap;
-import java.lang.Integer;
+import java.util.LinkedList;
 
 /**
  * A <i>Rendezvous</i> allows threads to synchronously exchange values.
@@ -12,8 +12,9 @@ public class Rendezvous {
      * Allocate a new Rendezvous.
      */
     public Rendezvous () {
-	values = new HashMap<Integer, Integer>();
-	waitingThreads = new HashMap<Integer, KThread>();
+	    values = new HashMap<Integer, Integer>();
+	    waitingThreads = new HashMap<Integer, KThread>();
+      bystanders = new LinkedList<KThread>();
     }
 
     /**
@@ -33,65 +34,74 @@ public class Rendezvous {
      * @param value the integer to exchange.
      */
     public int exchange (int tag, int value) {
-    
-    //this while thead is simply to wait if another exchange is happening   
-    while(values.get(tag) != null && waitingThreads.get(tag) == null)
-    {
-      KThread.yield();
-    }
-	//locking interrupts.
-	boolean intStatus = Machine.interrupt().disable();
+      //locking interrupts.
+      boolean intStatus = Machine.interrupt().disable();
+      
+      //this while thead is simply to wait if another exchange is happening   
+      if(values.get(tag) != null && waitingThreads.get(tag) == null)
+      {
+        bystanders.add(KThread.currentThread());
+        KThread.sleep();
+      }
 	
-	//this if statement will ensure there is not another thread waiting to exchange.
-	if(values.get(tag) == null)
-	{
-		//this is for thread A.
+  	  //this if statement will ensure there is not another thread waiting to exchange.
+	    if(values.get(tag) == null)
+	    {
+  		//this is for thread A.
 
-		//store the values into a hashmap, then sleep thread A.
-		values.put(tag, value);
-		//KThread.currentThread().sleep(); <- we can just sleep this thread.
-		//map this thread to a hashmap and go to sleep
-		waitingThreads.put(tag, KThread.currentThread());
-		KThread.sleep();
+	  	//store the values into a hashmap, then sleep thread A.
+	  	values.put(tag, value);
+	  	//KThread.currentThread().sleep(); <- we can just sleep this thread.
+	  	//map this thread to a hashmap and go to sleep
+	  	waitingThreads.put(tag, KThread.currentThread());
+	  	KThread.sleep();
 
-		//after being woken up the new value should be in the hashmap
+	  	//after being woken up the new value should be in the hashmap
 
-		//store the value locally and then remove it from the hashmap
-		//so that we may use it again in the future
-		int val = values.get(tag);
-		values.remove(tag);
+	  	//store the value locally and then remove it from the hashmap
+	  	//so that we may use it again in the future
+	  	int val = values.get(tag);
+	  	values.remove(tag);
+                         
+      //awaken any bystanders
+      while(bystanders.peek() != null)
+      {
+        bystanders.poll().ready();
+      }
 
-		//unlocking interrupts before returning value.
-		Machine.interrupt().restore(intStatus);
-		return val; 
-	}
-	//if there is already a thread waiting for exchange
-	else
-	{
-		//this is for thread B.
+	  	//unlocking interrupts before returning value.
+  		Machine.interrupt().restore(intStatus);
+	  	return val; 
+  	  }
+  	  //if there is already a thread waiting for exchange
+	    else
+    	{
+		  //this is for thread B.
 
-		//retrieve the value and replace it with our current value
-		int val = values.get(tag);
-		values.put(tag, value);
+	  	//retrieve the value and replace it with our current value
+	  	int val = values.get(tag);
+	  	values.put(tag, value);
 		
-		//reawaken blocked thread A and
-		waitingThreads.get(tag).ready();
-    //clear out the spot in the threads hashmap here
-		waitingThreads.remove(tag);
+	  	//reawaken blocked thread A and
+	  	waitingThreads.get(tag).ready();
+      //clear out the spot in the threads hashmap here
+	  	waitingThreads.remove(tag);
 
-		//unlocking interrupts before returning value.
-		Machine.interrupt().restore(intStatus);
-		return val;
-	}
+	  	//unlocking interrupts before returning value.
+	  	Machine.interrupt().restore(intStatus);
+	  	return val;
+	    }
   
     }
 
     private HashMap<Integer, Integer> values;
     private HashMap<Integer, KThread> waitingThreads;
+    private LinkedList<KThread> bystanders;
     
     // Place Rendezvous test code inside of the Rendezvous class.
 
     public static void rendezTest1() {
+      System.out.println("Test 1 Starting");
   	  final Rendezvous r = new Rendezvous();
   
   	  KThread t1 = new KThread( new Runnable () {
@@ -122,9 +132,11 @@ public class Rendezvous {
   	  t1.fork(); t2.fork();
   	  // assumes join is implemented correctly
     	t1.join(); t2.join();
+      System.out.println("Test 1 Complete");
     }
     
     public static void rendezTest3() {
+      System.out.println("Test 3 Starting");
       final Rendezvous r = new Rendezvous();
   
   	  KThread t1 = new KThread( new Runnable () {
@@ -184,9 +196,11 @@ public class Rendezvous {
       
       t3.fork(); t4.fork();
       t3.join(); t4.join();
+      System.out.println("Test 3 Complete");
     }
     
     public static void rendezTest2() {
+      System.out.println("Test 2 Starting");
       final Rendezvous r = new Rendezvous();
   
   	  KThread t1 = new KThread( new Runnable () {
@@ -246,9 +260,11 @@ public class Rendezvous {
       
       t3.fork(); t4.fork();
       t3.join(); t4.join();
+      System.out.println("Test 2 Complete");
     }
     
     public static void rendezTest4() {
+      System.out.println("Test 4 Starting");
       final Rendezvous r1 = new Rendezvous();
       final Rendezvous r2 = new Rendezvous();
   
@@ -309,6 +325,7 @@ public class Rendezvous {
       
       t3.fork(); t4.fork();
       t3.join(); t4.join();
+      System.out.println("Test 4 Complete");
     }        
 
     
@@ -317,7 +334,9 @@ public class Rendezvous {
 
     public static void selfTest() {
 	    // place calls to your Rendezvous tests that you implement here
-	    //rendezTest1();
+      rendezTest1();
+      rendezTest2();
+      rendezTest3();
       rendezTest4();
     }
 }
