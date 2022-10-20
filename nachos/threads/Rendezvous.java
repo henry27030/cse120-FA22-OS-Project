@@ -262,7 +262,7 @@ public class Rendezvous {
       t3.join(); t4.join();
       System.out.println("Test 2 Complete");
     }
-    
+    /*
     public static void rendezTest4() {
       System.out.println("Test 4 Starting");
       final Rendezvous r1 = new Rendezvous();
@@ -327,7 +327,7 @@ public class Rendezvous {
       t3.join(); t4.join();
       System.out.println("Test 4 Complete");
     }        
-
+*/
     
     
     // Invoke Rendezvous.selfTest() from ThreadedKernel.selfTest()
@@ -337,6 +337,6 @@ public class Rendezvous {
       rendezTest1();
       rendezTest2();
       rendezTest3();
-      rendezTest4();
+      //rendezTest4();
     }
 }

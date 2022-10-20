@@ -77,8 +77,12 @@ public class Condition2 {
 	 * associated lock.  The thread will automatically reacquire
 	 * the lock before <tt>sleep()</tt> returns.
 	 */
-        public void sleepFor(long timeout) {
+  public void sleepFor(long timeout) {
 		Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+    boolean intStatus = Machine.interrupt().disable();
+    //long wakeTime = Machine.timer().getTime() + x;
+    ThreadedKernel.alarm.waitUntil(timeout);
+    Machine.interrupt().restore(intStatus);
 	}
 
         private Lock conditionLock;
@@ -131,10 +135,25 @@ public class Condition2 {
             //for (int i = 0; i < 50; i++) { KThread.currentThread().yield(); }
         }
     }
+    private static void sleepForTest1 () {
+	    Lock lock = new Lock();
+	    Condition2 cv = new Condition2(lock);
+
+	    lock.acquire();
+	    long t0 = Machine.timer().getTime();
+	    System.out.println (KThread.currentThread().getName() + " sleeping");
+	    // no other thread will wake us up, so we should time out
+	    cv.sleepFor(2000);
+	    long t1 = Machine.timer().getTime();
+	    System.out.println (KThread.currentThread().getName() +
+			    " woke up, slept for " + (t1 - t0) + " ticks");
+	    lock.release();
+    }
 
     // Invoke Condition2.selfTest() from ThreadedKernel.selfTest()
 
     public static void selfTest() {
         new InterlockTest();
+        sleepForTest1();
     }
 }
