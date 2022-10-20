@@ -111,7 +111,22 @@ public class Alarm {
 	 * <p>
 	 * @param thread the thread whose timer should be cancelled.
 	 */
-        public boolean cancel(KThread thread) {
+    public boolean cancel(KThread thread) {
+
+		//for each thread in the waitList, compare to the parameter thread
+		//if it's the same thread then
+			//remove it from the waitList and transfer it into the readyQueue
+			//return true;
+		boolean intStatus = Machine.interrupt().disable();
+		for (Pair KThreadPair : waitList) {
+			if (KThreadPair.KThread == thread) {
+				waitList.remove(KThreadPair);
+				thread.ready();
+				Machine.interrupt().restore(intStatus);
+				return true;
+			}
+		}
+		Machine.interrupt().restore(intStatus);
 		return false;
 	}
   public static void alarmTest1() {
