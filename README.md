@@ -7,8 +7,12 @@
 - Note that this code is the same as the starter code that is available as a tar file on ieng6 machines.
 
 Henry:
-I wrote Condition2 according to the semaphore implementation.  I made KThreads sleep on condition variables until the condition variable it is sleeping on causes it or one of the other KThreads sleeping on it to wake.  Sleep works in the way that  it sleeps the KThread and adds it to a linkedList that sleeps on the condition variable.
+
+I wrote Condition2 according to the semaphore implementation.  I made KThreads release and acquire a lock in the form of a condition variable and sleep on condition variables until the condition variable it is sleeping on causes it or one of the other KThreads sleeping on it to wake.  Sleep() blocks the KThread by sleeping it and adds it to a linkedList that sleeps on the condition variable.
+
 wake causes the first KThread sleeping on the condition variable in its linkedList to be put on the ready queue.
+sleepFor should work in the way that it wakes up a specific KThread instead of making it wait in the linkedlist of a condition in the case that timeout is reached.
+Tests were implemented to check if KThreads that sleep on a condition variable would wake up accordingly and produce a "ping-pong" result. 
 
 sleepFor should work in the way that it wakes up a specific KThread instead of making it wait in the linkedlist of a condition in the case that timeout is reached.
 Tests were implemented to check if KThreads that sleep on a condition variable would wake up accordingly and produce a "ping-pong" result.
