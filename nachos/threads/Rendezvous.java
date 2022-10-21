@@ -1,8 +1,6 @@
 package nachos.threads;
 
 import nachos.machine.*;
-import java.util.HashMap;
-import java.util.LinkedList;
 
 /**
  * A <i>Rendezvous</i> allows threads to synchronously exchange values.

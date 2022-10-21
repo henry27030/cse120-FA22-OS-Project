@@ -125,6 +125,15 @@ public class KThread {
 		return (name + " (#" + id + ")");
 	}
 
+
+	public void setSleepForStatus(boolean b) {
+		this.usedSleepFor = b;
+	}
+
+	public boolean getSleepForStatus() {
+		return this.usedSleepFor;
+	}
+
 	/**
 	 * Deterministically and consistently compare this thread to another thread.
 	 */
@@ -502,6 +511,8 @@ public class KThread {
 	private ThreadQueue waitList = null;
 
 	private KThread joinCaller = null;
+
+	private boolean usedSleepFor = false;
 
     // Place Join test code in the KThread class and invoke test methods
     // from KThread.selfTest().
