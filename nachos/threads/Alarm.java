@@ -22,6 +22,7 @@ public class Alarm {
 		public Pair(KThread KThread, long waitTime) {
 			this.KThread = KThread;
 			this.waitTime = waitTime;
+
 		}
 
 		public long getWaitTime() {
@@ -69,7 +70,7 @@ public class Alarm {
 
 		//transfer eligible threads (based on waittime) from waitList to readyQueue
 		while (!(waitList.isEmpty()) && waitList.peek().getWaitTime() <= Machine.timer().getTime()) {
-			waitList.peek().getKThread().ready();
+			waitList.peek().getKThread().ready();			
 			waitList.poll();
 		}
 
@@ -118,14 +119,16 @@ public class Alarm {
 			//remove it from the waitList and transfer it into the readyQueue
 			//return true;
 		boolean intStatus = Machine.interrupt().disable();
+		//queue use a get method/remove method
 		for (Pair KThreadPair : waitList) {
 			if (KThreadPair.KThread == thread) {
-				waitList.remove(KThreadPair);
+				waitList.remove(KThreadPair); //remove from waitList in alarm
 				thread.ready();
 				Machine.interrupt().restore(intStatus);
 				return true;
 			}
 		}
+
 		Machine.interrupt().restore(intStatus);
 		return false;
 	}
