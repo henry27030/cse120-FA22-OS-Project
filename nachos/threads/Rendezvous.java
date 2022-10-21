@@ -1,5 +1,6 @@
 package nachos.threads;
 
+import java.util.HashMap;
 import nachos.machine.*;
 
 /**
