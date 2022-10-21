@@ -13,8 +13,9 @@ public class Rendezvous {
      */
     public Rendezvous () {
 	    values = new HashMap<Integer, Integer>();
-	    waitingThreads = new HashMap<Integer, KThread>();
-      bystanders = new LinkedList<KThread>();
+      myLock = new Lock();
+      myCondition = new Condition2(myLock);
+      inUse = false;
     }
 
     /**
@@ -34,73 +35,63 @@ public class Rendezvous {
      * @param value the integer to exchange.
      */
     public int exchange (int tag, int value) {
-      //locking interrupts.
-      boolean intStatus = Machine.interrupt().disable();
+      //acquire the lock
+      myLock.acquire();
       
-      //this while thead is simply to wait if another exchange is happening   
-      if(values.get(tag) != null && waitingThreads.get(tag) == null)
+      //if an exchange is happening
+      if(inUse)
       {
-        bystanders.add(KThread.currentThread());
-        KThread.sleep();
+        myCondition.sleep(); //add to the backlog of myCondition
+              //lock is automatically reacquired after waking up
       }
-	
+      
   	  //this if statement will ensure there is not another thread waiting to exchange.
 	    if(values.get(tag) == null)
 	    {
-  		//this is for thread A.
+    		//this is for thread A.
+	    	values.put(tag, value);//store the values into a hashmap,
+   	    myCondition.sleep();//then sleep thread A.
+        //lock returns after waking up and 
+        //we will release it later after waking up other threads
+        
+	    	//after being woken up the new value should be in the hashmap
+                
+	    	int val = values.get(tag); //store the value locally
+	    	values.remove(tag); //and then remove it from the hashmap
+                            //so that we may use it again in the future
+                      
+        inUse = false; //exchange is completed at this point 
+        myCondition.wake(); //wake up any threads that tried to interrupt when we
+                            //were doing the exchange
+        myLock.release();//and release the lock
 
-	  	//store the values into a hashmap, then sleep thread A.
-	  	values.put(tag, value);
-	  	//KThread.currentThread().sleep(); <- we can just sleep this thread.
-	  	//map this thread to a hashmap and go to sleep
-	  	waitingThreads.put(tag, KThread.currentThread());
-	  	KThread.sleep();
-
-	  	//after being woken up the new value should be in the hashmap
-
-	  	//store the value locally and then remove it from the hashmap
-	  	//so that we may use it again in the future
-	  	int val = values.get(tag);
-	  	values.remove(tag);
-                         
-      //awaken any bystanders
-      while(bystanders.peek() != null)
-      {
-        bystanders.poll().ready();
-      }
-
-	  	//unlocking interrupts before returning value.
-  		Machine.interrupt().restore(intStatus);
-	  	return val; 
+	  	  return val; 
   	  }
-  	  //if there is already a thread waiting for exchange
-	    else
+	    else //if there is already a thread waiting for exchange
     	{
-		  //this is for thread B.
-
-	  	//retrieve the value and replace it with our current value
-	  	int val = values.get(tag);
-	  	values.put(tag, value);
-		
-	  	//reawaken blocked thread A and
-	  	waitingThreads.get(tag).ready();
-      //clear out the spot in the threads hashmap here
-	  	waitingThreads.remove(tag);
-
-	  	//unlocking interrupts before returning value.
-	  	Machine.interrupt().restore(intStatus);
-	  	return val;
+		    //this is for thread B.
+	  	   
+	  	  int val = values.get(tag); //retrieve the value
+	  	  values.put(tag, value);    //and replace it with our current value
+                 
+        inUse = true; //indicate an exchange is happening
+        myCondition.wake(); //wake up stopped thread
+        myLock.release(); //and release the lock
+        
+	  	  return val;
 	    }
   
     }
 
     private HashMap<Integer, Integer> values;
-    private HashMap<Integer, KThread> waitingThreads;
-    private LinkedList<KThread> bystanders;
+    private Lock myLock;
+    private Condition2 myCondition;
+    private boolean inUse;
     
     // Place Rendezvous test code inside of the Rendezvous class.
 
     public static void rendezTest1() {
+      //testing a simple exchange
       System.out.println("Test 1 Starting");
   	  final Rendezvous r = new Rendezvous();
   
@@ -136,6 +127,7 @@ public class Rendezvous {
     }
     
     public static void rendezTest3() {
+      //testing running on the same tag consecatively
       System.out.println("Test 3 Starting");
       final Rendezvous r = new Rendezvous();
   
@@ -200,6 +192,7 @@ public class Rendezvous {
     }
     
     public static void rendezTest2() {
+      //tests exchanging on multiple tags
       System.out.println("Test 2 Starting");
       final Rendezvous r = new Rendezvous();
   
@@ -262,8 +255,9 @@ public class Rendezvous {
       t3.join(); t4.join();
       System.out.println("Test 2 Complete");
     }
-    /*
+    
     public static void rendezTest4() {
+      //testing different rendezvous objects
       System.out.println("Test 4 Starting");
       final Rendezvous r1 = new Rendezvous();
       final Rendezvous r2 = new Rendezvous();
@@ -321,22 +315,22 @@ public class Rendezvous {
   	  t4.setName("t4");
        
       t1.fork(); t2.fork();
-      t1.join(); t2.join();
-      
       t3.fork(); t4.fork();
+      
+      t1.join(); t2.join();
       t3.join(); t4.join();
+      
       System.out.println("Test 4 Complete");
     }        
-*/
     
     
     // Invoke Rendezvous.selfTest() from ThreadedKernel.selfTest()
-
+ 
     public static void selfTest() {
 	    // place calls to your Rendezvous tests that you implement here
       rendezTest1();
       rendezTest2();
       rendezTest3();
-      //rendezTest4();
+      rendezTest4();
     }
 }
