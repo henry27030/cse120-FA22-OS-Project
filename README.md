@@ -9,13 +9,17 @@
 Henry:
 I wrote Condition2 according to the semaphore implementation.  I made KThreads sleep on condition variables until the condition variable it is sleeping on causes it or one of the other KThreads sleeping on it to wake.  Sleep works in the way that  it sleeps the KThread and adds it to a linkedList that sleeps on the condition variable.
 wake causes the first KThread sleeping on the condition variable in its linkedList to be put on the ready queue.
+
 sleepFor should work in the way that it wakes up a specific KThread instead of making it wait in the linkedlist of a condition in the case that timeout is reached.
 Tests were implemented to check if KThreads that sleep on a condition variable would wake up accordingly and produce a "ping-pong" result.
 
 Ethan:
 I wrote Rendezvous's entire class structure basically. To implement exchange, there as an if else statement that determines if we are the first exchanger or the second exchanger. From there it's basically just a variable swap over a HashMap based on the tag.
+
 To synchronize, I used a lock and a condition variable where the first swapper goes to sleep until the second swapper places the new value and wakes it up.
+
 It worked basically as expected, but there were some problems when a third swapper would come in and wreck it after the second swapper had given up control. To get around this, I use a boolean value that sleeps the third swapper on the condition variable if an exchange is happening and release it after the first swapper is done. The problem persisted no more after that.
+
 In order to test my code, I basically did what the project page said, the first test was a simple exchange, the second was two exchanges on two different tags. The third was two exchanges sequentially, on one tag. The fourth was just two different rendezvous objects being used at the same time.
 
 Mark:
