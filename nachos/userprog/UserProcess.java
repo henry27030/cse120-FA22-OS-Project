@@ -625,7 +625,7 @@ public class UserProcess {
     if (namee == null) {
       return -1;
     }
-    //in the case that the process is using this file, unlink it first
+    //if this process is unlinking this file, it is done with the file, so close it
     for (int i=0; i<processFileDescriptors.length; i++) {//i=0 since user process allowed to close these descriptors: [0], [1]
       if (processFileDescriptors[i] !=null && processFileDescriptors[i].getName()==namee) {
         handleClose(i);//close the fd at that index
