@@ -497,6 +497,9 @@ public class UserProcess {
     int currRead = 0;
     int finalRead = 0;
     int amountToRead = 0;
+    if (size<0) {//check for negative size
+      return -1;
+    }
     if (fd!=0 && !(fd>=2 && fd<=15)) {//fd can be 0 or >2 && less than size of array, [0] is standard input, [1] is standard output
       return -1;
     }
@@ -552,6 +555,9 @@ public class UserProcess {
     int finalWrote = 0;
     int amountToWrite = 0;
     int wroteToFile;
+    if (size<0) {//check for negative size
+      return -1;
+    }
     if (!(fd>=1 && fd<=15)) {//fd must be file descriptors index 1->15
       return -1;
     }
