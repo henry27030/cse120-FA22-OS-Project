@@ -28,6 +28,11 @@ public class UserProcess {
 		pageTable = new TranslationEntry[numPhysPages];
 		for (int i = 0; i < numPhysPages; i++)
 			pageTable[i] = new TranslationEntry(i, i, true, false, false, false);
+    
+    processFileDescriptors = new OpenFile[16];//every file has tablesize 16 of file descriptors
+    //index 0 for reading, index 1 for writing
+    processFileDescriptors[0] = UserKernel.console.openForReading();
+    processFileDescriptors[1] = UserKernel.console.openForWriting();
 	}
 
 	/**
@@ -374,6 +379,266 @@ public class UserProcess {
 		return 0;
 	}
 
+/**
+ * Attempt to open the named disk file, creating it if it does not exist,
+ * and return a file descriptor that can be used to access the file. If
+ * the file already exists, creat truncates it.
+ *
+ * Note that creat() can only be used to create files on disk; creat() will
+ * never return a file descriptor referring to a stream.
+ *
+ * Returns the new file descriptor, or -1 if an error occurred.
+ */
+  private int handleCreat(int name) {
+    String namee;
+    boolean removeForTruncate = false;
+    OpenFile fileToCreat;
+    
+    //name refers to virtual address, so use readVirtualMemoryString
+    namee = readVirtualMemoryString(name,256); //maximum length for strings passed as args to syscalls is 256
+    //namee refers to a file name if it's !=null, if it is null, return error
+    if (namee == null) {
+      return -1;
+    }
+    fileToCreat = ThreadedKernel.fileSystem.open(namee, true); //UserProcess.load uses this;
+                                                               //creates new file if doesn't already exist
+    
+    //handle case that we don't have permission access to file(rwe)
+    if (fileToCreat==null){
+      return -1;
+    }
+    //the file exists already or has just been created
+    else {
+      //truncate the file in the case that it already exists
+      removeForTruncate=ThreadedKernel.fileSystem.remove(namee);
+      //in the case that we aren't able to remove the file
+      if (removeForTruncate==false) {
+        return -1;
+      }
+      fileToCreat = ThreadedKernel.fileSystem.open(namee, true);
+      
+      //add the fileToCreat to process's file descriptors
+      for (int i=2; i<processFileDescriptors.length; i++) {//i=2 since we don't want to change reading/writing
+        if (processFileDescriptors[i] == null) {
+          processFileDescriptors[i]=fileToCreat;
+          return i;
+        }
+      }
+    }
+    //in the case that this has been reached, processFileDescriptors is full, so return an error
+    ThreadedKernel.fileSystem.remove(namee);
+    return -1;
+  }
+
+/**
+ * Attempt to open the named file and return a file descriptor.
+ *
+ * Note that open() can only be used to open files on disk; open() will never
+ * return a file descriptor referring to a stream.
+ *
+ * Returns the new file descriptor, or -1 if an error occurred.
+ */
+  private int handleOpen(int name) {//same as handleCreat but doesn't create a new file nor truncate
+    String namee;
+    OpenFile fileToOpen;
+    
+    //name refers to virtual address, so use readVirtualMemoryString
+    namee = readVirtualMemoryString(name,256); //maximum length for strings passed as args to syscalls is 256
+    //namee refers to a file name if it's !=null, if it is null, return error
+    if (namee == null) {
+      return -1;
+    }
+    fileToOpen = ThreadedKernel.fileSystem.open(namee, false); //UserProcess.load uses this;
+                                                               //doesn't create new file if doesn't already exist
+    
+    //handle case that we don't have permission access to file(rwe) or fileToOpen doesn't refer to a file after open()
+    if (fileToOpen==null){
+      return -1;
+    }
+    //the file exists already
+    else {  
+      //add the fileToOpen to process's file descriptors
+      for (int i=2; i<processFileDescriptors.length; i++) {//i=2 since we don't want to change reading/writing
+        if (processFileDescriptors[i] == null) {
+          processFileDescriptors[i]=fileToOpen;
+          return i;
+        }
+      }
+    }
+    //in the case that this has been reached, processFileDescriptors is full, so return an error
+    ThreadedKernel.fileSystem.remove(namee);
+    return -1;
+  }
+
+/**
+ * Attempt to read up to size bytes into buffer from the file or stream
+ * referred to by fileDescriptor.
+ *
+ * On success, the number of bytes read is returned. If the file descriptor
+ * refers to a file on disk, the file position is advanced by this number.
+ *
+ * It is not necessarily an error if this number is smaller than the number of
+ * bytes requested. If the file descriptor refers to a file on disk, this
+ * indicates that the end of the file has been reached. If the file descriptor
+ * refers to a stream, this indicates that the fewer bytes are actually
+ * available right now than were requested, but more bytes may become available
+ * in the future. Note that read() never waits for a stream to have more data;
+ * it always returns as much as possible immediately.
+ *
+ * On error, -1 is returned, and the new file position is undefined. This can
+ * happen if fileDescriptor is invalid, if part of the buffer is read-only or
+ * invalid, or if a network stream has been terminated by the remote host and
+ * no more data is available.
+ */
+  private int handleRead(int fd, int buffer, int size) {
+    byte[] bytesReadFromFile = new byte[pageSize];//pagesize is the number of bytes of a page of the processor
+    OpenFile fileToRead;
+    int max = size;
+    int currRead = 0;
+    int finalRead = 0;
+    int amountToRead = 0;
+    if (fd!=0 && !(fd>=2 && fd<=15)) {//fd can be 0 or >2 && less than size of array, [0] is standard input, [1] is standard output
+      return -1;
+    }
+    //no OpenFile has been stored at this index of processFileDescriptors
+    if (processFileDescriptors[fd]==null) {
+      return -1;
+    }
+    fileToRead = processFileDescriptors[fd];
+    //read pageSize amount of bytes at a time from the file and write to buffer up to size amount of bytes
+    while (max>0) {
+      amountToRead=pageSize;//read in pageSize bytes each time
+      if (max<pageSize) { //in the case that pageSize of bytes is more than the amount we want to read(size)
+        amountToRead=max;
+      }
+      currRead = fileToRead.read(bytesReadFromFile, 0, amountToRead);
+      if (currRead==-1) {
+        return -1;//error in OpenFile.read();
+      }
+      if (currRead==0) { //in the case that the end of the file has been reached
+        break;
+      }
+      writeVirtualMemory(buffer, bytesReadFromFile, 0, amountToRead);//write from bytesReadFromFile to buffer
+      max-=currRead;
+      finalRead+=currRead;
+      buffer+=currRead;//move buffer
+    }    
+    return finalRead;
+  }
+
+
+/**
+ * Attempt to write up to size bytes from buffer to the file or stream
+ * referred to by fileDescriptor. write() can return before the bytes are
+ * actually flushed to the file or stream. A write to a stream can block,
+ * however, if kernel queues are temporarily full.
+ *
+ * On success, the number of bytes written is returned (zero indicates nothing
+ * was written), and the file position is advanced by this number. It IS an
+ * error if this number is smaller than the number of bytes requested. For
+ * disk files, this indicates that the disk is full. For streams, this
+ * indicates the stream was terminated by the remote host before all the data
+ * was transferred.
+ *
+ * On error, -1 is returned, and the new file position is undefined. This can
+ * happen if fileDescriptor is invalid, if part of the buffer is invalid, or
+ * if a network stream has already been terminated by the remote host.
+ */
+  private int handleWrite(int fd, int buffer, int size){
+    byte[] bytesReadFromVM = new byte[pageSize];//pagesize is the number of bytes of a page of the processor
+    OpenFile fileToWrite;
+    int max = size;
+    int currWrote = 0;
+    int finalWrote = 0;
+    int amountToWrite = 0;
+    int wroteToFile;
+    if (!(fd>=1 && fd<=15)) {//fd must be file descriptors index 1->15
+      return -1;
+    }
+    //no OpenFile has been stored at this index of processFileDescriptors
+    if (processFileDescriptors[fd]==null) {
+      return -1;
+    }
+    fileToWrite = processFileDescriptors[fd];
+    //write pageSize amount of bytes at a time from buffer to file
+    while (max>0) {
+      amountToWrite=pageSize;//write pageSize bytes each time
+      if (max<pageSize) { //in the case that pageSize of bytes is more than the amount, we want to write size bytes
+        amountToWrite=max;
+      }
+      currWrote = readVirtualMemory(buffer, bytesReadFromVM, 0, amountToWrite);//read from virtual memory
+      if (currWrote==0) {//nothing left to read from VM
+        break;
+      }
+      wroteToFile = fileToWrite.write(bytesReadFromVM, 0, currWrote); //write to file
+      //in this case we were not able to write everything from VM to the file or there's an error in OpenFile.write();
+      if (wroteToFile==-1 || currWrote!=wroteToFile) {
+        return -1;
+      }
+      max-=wroteToFile;
+      finalWrote+=wroteToFile;
+      buffer+=wroteToFile;//move buffer
+    }
+    return finalWrote;
+  }
+  
+/**
+ * Close a file descriptor, so that it no longer refers to any file or
+ * stream and may be reused. The resources associated with the file
+ * descriptor are released.
+ *
+ * Returns 0 on success, or -1 if an error occurred.
+ */
+  private int handleClose(int fd) {
+    //checking for valid fd
+    if (!(fd>=0 && fd<=processFileDescriptors.length-1)) {
+      return -1;
+    }
+    //checking if trying to close null fd
+    if (processFileDescriptors[fd]==null) {
+      return -1;
+    }
+    //close the fd, null it so another fd can take its place
+    processFileDescriptors[fd].close();
+    processFileDescriptors[fd]=null;
+    return 0;
+  }
+
+/**
+ * Delete a file from the file system. 
+ *
+ * If another process has the file open, the underlying file system
+ * implementation in StubFileSystem will cleanly handle this situation
+ * (this process will ask the file system to remove the file, but the
+ * file will not actually be deleted by the file system until all
+ * other processes are done with the file).
+ *
+ * Returns 0 on success, or -1 if an error occurred.
+ */
+  private int handleUnlink(int name) {
+    String namee;
+    boolean removed=false;
+    
+    //name refers to virtual address, so use readVirtualMemoryString
+    namee = readVirtualMemoryString(name,256); //maximum length for strings passed as args to syscalls is 256
+    //namee refers to a file name if it's !=null, if it is null, return error
+    if (namee == null) {
+      return -1;
+    }
+    //in the case that the process is using this file, unlink it first
+    for (int i=0; i<processFileDescriptors.length; i++) {//i=0 since user process allowed to close these descriptors: [0], [1]
+      if (processFileDescriptors[i] !=null && processFileDescriptors[i].getName()==namee) {
+        handleClose(i);//close the fd at that index
+      }
+    }
+    removed=ThreadedKernel.fileSystem.remove(namee);//remove the file
+    if (removed==true) {//check if it's removed or not
+      return 0;
+    }
+    //in the case that file was not able to be removed, we reach this
+    return -1;
+  }
+
 	private static final int syscallHalt = 0, syscallExit = 1, syscallExec = 2,
 			syscallJoin = 3, syscallCreate = 4, syscallOpen = 5,
 			syscallRead = 6, syscallWrite = 7, syscallClose = 8,
@@ -446,6 +711,18 @@ public class UserProcess {
 			return handleHalt();
 		case syscallExit:
 			return handleExit(a0);
+    case syscallCreate:
+      return handleCreat(a0);
+    case syscallOpen:
+      return handleOpen(a0);
+    case syscallRead:
+      return handleRead(a0, a1, a2);
+    case syscallWrite:
+      return handleWrite(a0, a1, a2);
+    case syscallClose:
+      return handleClose(a0);
+    case syscallUnlink:
+      return handleUnlink(a0);
 
 		default:
 			Lib.debug(dbgProcess, "Unknown syscall " + syscall);
@@ -504,4 +781,7 @@ public class UserProcess {
 	private static final int pageSize = Processor.pageSize;
 
 	private static final char dbgProcess = 'a';
+ 
+  //added
+  OpenFile[] processFileDescriptors;
 }
