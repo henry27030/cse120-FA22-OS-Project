@@ -521,7 +521,7 @@ public class UserProcess {
       if (currRead==0) { //in the case that the end of the file has been reached
         break;
       }
-      writeVirtualMemory(buffer, bytesReadFromFile, 0, amountToRead);//write from bytesReadFromFile to buffer
+      writeVirtualMemory(buffer, bytesReadFromFile, 0, currRead);//write from bytesReadFromFile to buffer
       max-=currRead;
       finalRead+=currRead;
       buffer+=currRead;//move buffer
