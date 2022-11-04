@@ -497,6 +497,10 @@ public class UserProcess {
     int currRead = 0;
     int finalRead = 0;
     int amountToRead = 0;
+    //checking for valid buffer and size
+    if (readVirtualMemoryString(buffer,256) == null || size>(32*1024)) {
+      return -1;
+    }
     if (size<0) {//check for negative size
       return -1;
     }
@@ -555,6 +559,10 @@ public class UserProcess {
     int finalWrote = 0;
     int amountToWrite = 0;
     int wroteToFile;
+    //checking for valid buffer and size
+    if (readVirtualMemoryString(buffer,256) == null || size>(32*1024)) {
+      return -1;
+    }
     if (size<0) {//check for negative size
       return -1;
     }
