@@ -29,6 +29,17 @@ public class UserKernel extends ThreadedKernel {
 				exceptionHandler();
 			}
 		});
+  
+    //Instantation of our free physical memory addresses.
+    freeAddrs = new LinkedList<int>();
+    //At the start they're all free. 0 -> number of pages. 
+    for(int i = 0; i < Machine.processor().getNumPhysPages; i++)
+    {
+      freeAddrs.add(i);
+    }
+    
+    lock = new Lock();
+    cv = new Condition(lock);
 	}
 
 	/**
@@ -118,10 +129,28 @@ public class UserKernel extends ThreadedKernel {
 	public void terminate() {
 		super.terminate();
 	}
+ 
+  public static int acquirePage(){
+    lock.acquire();
+    int addr = freeAddrs.poll();
+    lock.release();
+    return addr;
+  }
+  
+  public static void releasePage(int addr){
+     lock.acquire();
+     freeAddrs.add(addr);
+     lock.release();
+  }
 
 	/** Globally accessible reference to the synchronized console. */
 	public static SynchConsole console;
 
 	// dummy variables to make javac smarter
 	private static Coff dummy1 = null;
+ 
+  //free physical memory addresses
+  private static LinkedList<int> freeAddrs;
+  private Condition cv;
+  private Lock lock;
 }

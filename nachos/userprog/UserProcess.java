@@ -24,10 +24,10 @@ public class UserProcess {
 	 * Allocate a new process.
 	 */
 	public UserProcess() {
-		int numPhysPages = Machine.processor().getNumPhysPages();
+		/*int numPhysPages = Machine.processor().getNumPhysPages();
 		pageTable = new TranslationEntry[numPhysPages];
 		for (int i = 0; i < numPhysPages; i++)
-			pageTable[i] = new TranslationEntry(i, i, true, false, false, false);
+			pageTable[i] = new TranslationEntry(i, i, true, false, false, false);*/
     
     processFileDescriptors = new OpenFile[16];//every file has tablesize 16 of file descriptors
     //index 0 for reading, index 1 for writing
@@ -304,6 +304,13 @@ public class UserProcess {
 			Lib.debug(dbgProcess, "\tinsufficient physical memory");
 			return false;
 		}
+   
+    //initializing virtual memory
+    pageTable = new TranslationEntry[numPages];
+    for(int i = 0; i < pageTable.length; i++)
+    {
+      pageTable[i] = new TranslationEntry(i, UserKernel.acquirePage(), true, false, false, false);
+    }
 
 		// load sections
 		for (int s = 0; s < coff.getNumSections(); s++) {
@@ -316,7 +323,10 @@ public class UserProcess {
 				int vpn = section.getFirstVPN() + i;
 
 				// for now, just assume virtual addresses=physical addresses
-				section.loadPage(i, vpn);
+        // actually, grabbing physical address from array.
+				section.loadPage(i, pageTable[vpn].ppn);
+        //sets the translationEntry to readOnly if the section is.
+        pageTable[vpn].readOnly = section.isReadOnly();
 			}
 		}
 
@@ -327,6 +337,13 @@ public class UserProcess {
 	 * Release any resources allocated by <tt>loadSections()</tt>.
 	 */
 	protected void unloadSections() {
+    //simple for loop implementation that just goes through
+    //and releases all pages.
+    for(int i = 0; i < pageTable.length; i++)
+    {
+      int currPage = pageTable[i].ppn;
+      UserKernel.releasePage(currPage);
+    }
 	}
 
 	/**
@@ -371,6 +388,8 @@ public class UserProcess {
 		Machine.autoGrader().finishingCurrentProcess(status);
 		// ...and leave it as the top of handleExit so that we
 		// can grade your implementation.
+   
+    unloadSections();
 
 		Lib.debug(dbgProcess, "UserProcess.handleExit (" + status + ")");
 		// for now, unconditionally terminate with just one process
@@ -754,6 +773,8 @@ public class UserProcess {
 	 */
 	public void handleException(int cause) {
 		Processor processor = Machine.processor();
+   
+    unloadSections();
 
 		switch (cause) {
 		case Processor.exceptionSyscall:
