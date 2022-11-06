@@ -153,13 +153,33 @@ public class UserProcess {
 		byte[] memory = Machine.processor().getMemory();
 
 		// for now, just assume that virtual addresses equal physical addresses
-		if (vaddr < 0 || vaddr >= memory.length)
+    // Assume it's within pageTable length. 
+		if (vaddr < 0 || vaddr >= pageTable.length)
 			return 0;
 
 		int amount = Math.min(length, memory.length - vaddr);
-		System.arraycopy(memory, vaddr, data, offset, amount);
+    //System.arraycopy(memory, vaddr, data, offset, amount);
+   
+    int iterable = 0;
+    int page, diff, spaceLeft;
+    
+    do
+    {
+      page = (vaddr + iterable) / pageSize; //get virtual page
+      diff = (vaddr + iterable) % pageSize; //get offset within that virtual page.
+      
+      spaceLeft = pageSize - diff;  //spaceLeft is just how far we can traverse within the page
+                                    //before we have to go to the next one.
+      
+      //copying all we can from the page
+      System.arraycopy(memory, pageTable[page].ppn + diff, data, offset, spaceLeft);
+      iterable += spaceLeft;  //indicate we've covered this space.
+      offset += spaceLeft;  //move the offset as well.
+      length -= spaceLeft;  //reducing from length so we don't read too much.
+    }
+    while(length > 0);
 
-		return amount;
+		return iterable; //I think here we can return the iterable, as it's how much we've traversed.
 	}
 
 	/**
@@ -199,9 +219,28 @@ public class UserProcess {
 			return 0;
 
 		int amount = Math.min(length, memory.length - vaddr);
-		System.arraycopy(data, offset, memory, vaddr, amount);
+		//System.arraycopy(data, offset, memory, vaddr, amount);
+   
+    //similar to read
+    int iterable = 0;
+    int page, diff, spaceLeft;
+    
+    do
+    {
+      page = (vaddr + iterable) / pageSize; //get virtual page
+      diff = (vaddr + iterable) % pageSize; //get offset within that virtual page.
+      
+      spaceLeft = pageSize - diff;  //spaceLeft, like in read, indicates how much we can write.
+      
+      //copying what we can fit into the virtual memory. 
+      System.arraycopy(data, offset, memory, pageTable[page].ppn + diff, spaceLeft);
+      iterable += spaceLeft;  //indicate we've covered this space.
+      offset += spaceLeft;  //move the offset as well, so we know where to insert.
+      length -= spaceLeft;  //reducing from length so we don't write too much.
+    }
+    while(length > 0);
 
-		return amount;
+		return iterable; //again, iterable indicates how much we've traversed.
 	}
 
 	/**
