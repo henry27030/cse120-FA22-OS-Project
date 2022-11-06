@@ -24,10 +24,10 @@ public class UserProcess {
 	 * Allocate a new process.
 	 */
 	public UserProcess() {
-		int numPhysPages = Machine.processor().getNumPhysPages();
+		/*int numPhysPages = Machine.processor().getNumPhysPages();
 		pageTable = new TranslationEntry[numPhysPages];
 		for (int i = 0; i < numPhysPages; i++)
-			pageTable[i] = new TranslationEntry(i, i, true, false, false, false);
+			pageTable[i] = new TranslationEntry(i, i, true, false, false, false); */
     
     processFileDescriptors = new OpenFile[16];//every file has tablesize 16 of file descriptors
     //index 0 for reading, index 1 for writing
@@ -157,9 +157,32 @@ public class UserProcess {
 			return 0;
 
 		int amount = Math.min(length, memory.length - vaddr);
-		System.arraycopy(memory, vaddr, data, offset, amount);
+		//System.arraycopy(memory, vaddr, data, offset, amount);
+   
+    int iterable = 0;
+    int page, diff;
+    do
+    {
+      page = (vaddr + iterable) / pageSize;
+      diff = (vaddr + iterable) % pageSize;
+      
+      int spaceLeft = pageSize - diff;
+      
+      if(spaceLeft < length - iterable)
+      {
+        //System.out.println(iterable + " " + pageSize + " " + spaceLeft + " " + (length - iterable));
+        System.arraycopy(memory, pageTable[page].ppn*pageSize + diff, data, offset+iterable, spaceLeft);
+        iterable += spaceLeft;
+      }
+      else
+      {
+        System.arraycopy(memory, pageTable[page].ppn*pageSize + diff, data, offset+iterable, length - iterable);
+        iterable += length - iterable;
+      }
+    }
+    while(iterable < length);
 
-		return amount;
+		return iterable;
 	}
 
 	/**
@@ -199,9 +222,33 @@ public class UserProcess {
 			return 0;
 
 		int amount = Math.min(length, memory.length - vaddr);
-		System.arraycopy(data, offset, memory, vaddr, amount);
+    System.out.println(pageTable[vaddr/pageSize].ppn + (vaddr%pageSize));
+		//System.arraycopy(data, offset, memory, vaddr, amount);
+   
+    int iterable = 0;
+    int page, diff;
+    do
+    {
+      page = (vaddr + iterable) / pageSize;
+      diff = (vaddr + iterable) % pageSize;
+      
+      int spaceLeft = pageSize - diff;
+      
+      if(spaceLeft < length - iterable)
+      {
+        //System.out.println(iterable + " " + pageSize + " " + spaceLeft + " " + (length - iterable));
+        System.arraycopy(data, offset+iterable, memory, pageTable[page].ppn*pageSize + diff, spaceLeft);
+        iterable += spaceLeft;
+      }
+      else
+      {
+        System.arraycopy(data, offset+iterable, memory, pageTable[page].ppn*pageSize + diff, length - iterable);
+        iterable += length - iterable;
+      }
+    }
+    while(iterable < length);
 
-		return amount;
+		return iterable;
 	}
 
 	/**
@@ -304,6 +351,12 @@ public class UserProcess {
 			Lib.debug(dbgProcess, "\tinsufficient physical memory");
 			return false;
 		}
+   
+    pageTable = new TranslationEntry[numPages];
+    for (int i = 0; i < numPages; i++)
+    {
+      pageTable[i] = new TranslationEntry(i, UserKernel.acquirePage(), true, false, false, false);
+    }
 
 		// load sections
 		for (int s = 0; s < coff.getNumSections(); s++) {
@@ -316,7 +369,8 @@ public class UserProcess {
 				int vpn = section.getFirstVPN() + i;
 
 				// for now, just assume virtual addresses=physical addresses
-				section.loadPage(i, vpn);
+				section.loadPage(i, pageTable[vpn].ppn);
+        pageTable[vpn].readOnly = section.isReadOnly();
 			}
 		}
 
@@ -327,6 +381,10 @@ public class UserProcess {
 	 * Release any resources allocated by <tt>loadSections()</tt>.
 	 */
 	protected void unloadSections() {
+    for(int i = 0; i < pageTable.length; i++)
+    {
+      UserKernel.releasePage(pageTable[i].ppn);
+    }
 	}
 
 	/**
@@ -371,6 +429,8 @@ public class UserProcess {
 		Machine.autoGrader().finishingCurrentProcess(status);
 		// ...and leave it as the top of handleExit so that we
 		// can grade your implementation.
+   
+    unloadSections();
 
 		Lib.debug(dbgProcess, "UserProcess.handleExit (" + status + ")");
 		// for now, unconditionally terminate with just one process
@@ -585,6 +645,7 @@ public class UserProcess {
         break;
       }
       wroteToFile = fileToWrite.write(bytesReadFromVM, 0, currWrote); //write to file
+      //wroteToFile = writeVirtualMemory(buffer, bytesReadFromVM, 0, currWrote);
       //in this case we were not able to write everything from VM to the file or there's an error in OpenFile.write();
       if (wroteToFile==-1 || currWrote!=wroteToFile) {
         return -1;
@@ -754,6 +815,8 @@ public class UserProcess {
 	 */
 	public void handleException(int cause) {
 		Processor processor = Machine.processor();
+   
+    unloadSections();
 
 		switch (cause) {
 		case Processor.exceptionSyscall:
