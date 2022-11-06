@@ -222,7 +222,7 @@ public class UserProcess {
 			return 0;
 
 		int amount = Math.min(length, memory.length - vaddr);
-    System.out.println(pageTable[vaddr/pageSize].ppn + (vaddr%pageSize));
+    //System.out.println(pageTable[vaddr/pageSize].ppn + (vaddr%pageSize));
 		//System.arraycopy(data, offset, memory, vaddr, amount);
    
     int iterable = 0;
