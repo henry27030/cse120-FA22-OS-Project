@@ -93,6 +93,10 @@ public class UserProcess {
 		Machine.processor().setPageTable(pageTable);
 	}
 
+	public int getPID() {
+		return this.pid;
+	}
+
 	/**
 	 * Read a null-terminated string from this process's virtual memory. Read at
 	 * most <tt>maxLength + 1</tt> bytes from the specified address, search for
@@ -453,7 +457,7 @@ public class UserProcess {
 	}
 
 	private int handleJoin(int pid, int status) {
-		UserProcess child = children.getPID();
+		UserProcess child = children.get(pid);
 		if (child == null) {
 			return -1;
 		}
@@ -463,7 +467,7 @@ public class UserProcess {
 
 		byte[] buf = new byte[4];
 		buf = Lib.bytesFromInt(child.exitStatus);
-		if (!writeVirtualMemory(status, buf) == 4) {
+		if (writeVirtualMemory(status, buf) != 4) {
 			return 0;
 		}
 		return 1;
@@ -913,9 +917,7 @@ public class UserProcess {
 		}
 	}
 
-	public int getPID() {
-		return this.pid;
-	}
+
 
 	/** The program being run by this process. */
 	protected Coff coff;
