@@ -4,6 +4,7 @@ import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
 import nachos.vm.*;
+import java.util.*;
 
 import java.io.EOFException;
 
@@ -460,7 +461,7 @@ public class UserProcess {
 		children.remove(pid);
 		child.parent = null;
 
-		byte byf = new byte[4];
+		byte[] buf = new byte[4];
 		buf = Lib.bytesFromInt(child.exitStatus);
 		if (!writeVirtualMemory(status, buf) == 4) {
 			return 0;
@@ -477,7 +478,7 @@ public class UserProcess {
 		if (fileName == null) {
 			return -1;
 		}
-		else if (fileName.length == 0 || !fileName.endsWih(".coff")) {
+		else if (fileName.length() == 0 || !fileName.endsWith(".coff")) {
 			return -1;
 		}
 
@@ -945,7 +946,7 @@ public class UserProcess {
 	//part 3 stuff
 	private UserProcess parent;
 	private int pid = 0;
-	private UThread thread;
+	//private UThread thread;
 	private static Map<Integer, UserProcess> children = new HashMap<>();
 	private int exitStatus;
 
