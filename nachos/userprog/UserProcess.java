@@ -453,16 +453,17 @@ public class UserProcess {
 		}
 
 		//because this process is exiting, gotta make the children independent
+		//by setting their parent reference (to this) to null
 		for (UserProcess child : children.values()) {
 			child.parent = null;
 		}
 		//and clear this process of its children Map
 		children.clear();
 
-		//remove this process from parent's children Map
+		//remove this process from this processes parent's children Map
 		if (parent != null) {
 			parent.children.remove(this.getPID());
-			child.parent = null;
+			parent = null;
 		}
 
 		//if this is the last process, then use terminate()
