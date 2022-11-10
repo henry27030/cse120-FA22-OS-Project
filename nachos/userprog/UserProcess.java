@@ -1000,7 +1000,7 @@ public class UserProcess {
 	private int pid = 0;
 	private static int pCounter = 0;
 	//private UThread thread;
-	private Map<Integer, UserProcess> children = new HashMap<>();
+	private static Map<Integer, UserProcess> children = new HashMap<>();
 	private int exitStatus;
 
 }
