@@ -470,6 +470,8 @@ public class UserProcess {
 		}
 		//and clear this process of its children Map
 		//children.clear();
+		System.out.println("handleExit: is the children map empty after removing: " + children.isEmpty());
+
 
 		//remove this process from this processes parent's children Map
 		if (parent != null) {
