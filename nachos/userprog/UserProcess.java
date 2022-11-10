@@ -547,6 +547,7 @@ public class UserProcess {
 
 		UserProcess child = new UserProcess();
 		child.parent = this;
+		child.pid = ++pCounter;
 		children.put(child.getPID(), child);
 
 		if (!child.execute(fileName, args)) {
@@ -992,6 +993,7 @@ public class UserProcess {
 	//part 3 stuff
 	private UserProcess parent;
 	private int pid = 0;
+	private static int pCounter = 0;
 	//private UThread thread;
 	private Map<Integer, UserProcess> children = new HashMap<>();
 	private int exitStatus;
