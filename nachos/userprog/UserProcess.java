@@ -474,10 +474,14 @@ public class UserProcess {
 
 
 		//remove this process from this processes parent's children Map
-		if (parent != null) {
-			parent.children.remove(this.getPID());
-			parent = null;
-		}
+
+		//is this current process SUPPOSED TO remove itself from the parent's children list
+		//(tho in this case, it's a static list that contains all childlren)
+
+		// if (parent != null) {
+		// 	parent.children.remove(this.getPID());
+		// 	parent = null;
+		// }
 
 		//if this is the last process, then use terminate()
 		if (pid == 0) {
