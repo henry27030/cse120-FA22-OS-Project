@@ -480,6 +480,7 @@ public class UserProcess {
 		//get child of specified pid from Map children
 		UserProcess child = children.get(pid);
 		if (child == null) {
+			System.out.println("handleJoin: null child");
 			return -1;
 		}
 		//join on the child and after, remove the child from the Map
@@ -494,10 +495,12 @@ public class UserProcess {
 
 		//check if 4 bytes, the status was written
 		if (writeVirtualMemory(statusAddr, buf) != 4) {
+			System.out.println("handleJoin: wVM() failed");
 			return -1;
 			//HAAALLLLPPPP ---- what do I return here???
 			//is it 1 or -1 or rather what's the difference
 		}
+		System.out.println("handleJoin: Before final return");
 		return 0;
 	}
 
@@ -959,6 +962,7 @@ public class UserProcess {
 			Lib.debug(dbgProcess, "Unexpected exception: "
 					+ Processor.exceptionNames[cause]);
 			Lib.assertNotReached("Unexpected exception");
+
 		}
 	}
 
