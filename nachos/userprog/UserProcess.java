@@ -988,7 +988,7 @@ public class UserProcess {
 	public void handleException(int cause) {
 		Processor processor = Machine.processor();
 
-    unloadSections();
+    //unloadSections();
 
 		switch (cause) {
 		case Processor.exceptionSyscall:
