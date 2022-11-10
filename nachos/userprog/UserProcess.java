@@ -551,7 +551,7 @@ public class UserProcess {
 		UserProcess child = new UserProcess();
 		child.parent = this;
 		child.pid = ++pCounter;
-		children.put(Integer.valueOf(child.pid, child);
+		children.put(Integer.valueOf(child.pid, child));
 
 		if (!child.execute(fileName, args)) {
 			return -1;
