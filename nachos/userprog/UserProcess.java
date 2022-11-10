@@ -419,60 +419,92 @@ public class UserProcess {
 	 * Handle the halt() system call.
 	 */
 	private int handleHalt() {
-
-		Machine.halt();
-
+		if (getPID() == 0) {
+			Machine.halt();
+		}
 		Lib.assertNotReached("Machine.halt() did not halt machine!");
+		//do I return 1 here instead ???
 		return 0;
 	}
 
 	/**
 	 * Handle the exit() system call.
 	 */
-	private int handleExit(int status) {
+	private void handleExit(int status) {
 	        // Do not remove this call to the autoGrader...
 		Machine.autoGrader().finishingCurrentProcess(status);
 		// ...and leave it as the top of handleExit so that we
 		// can grade your implementation.
 
+		Lib.debug(dbgProcess, "UserProcess.handleExit (" + status + ")");
+		// for now, unconditionally terminate with just one process
+
+		//status to be transferred to join??
+		//or rather what kind of statuses can exist with exit()
 		this.exitStatus = status;
-    	unloadSections();
+		unloadSections();
+
+		//close all open files that this Process has opened
+		for (int i = 0; i < processFileDescriptors.length; i++) {
+			if (processFileDescriptors[i] != null) {
+				//i serves as the fd here, we want all of the files closed
+				handleClose(i);
+			}
+		}
 
 		//because this process is exiting, gotta make the children independent
 		for (UserProcess child : children.values()) {
 			child.parent = null;
 		}
+		//and clear this process of its children Map
 		children.clear();
 
-		Lib.debug(dbgProcess, "UserProcess.handleExit (" + status + ")");
-		// for now, unconditionally terminate with just one process
+		//remove this process from parent's children Map
+		if (parent != null) {
+			parent.children.remove(this.getPID());
+			parent.child = null
+		}
 
+		//if this is the last process, then use terminate()
 		if (pid == 0) {
 			Kernel.kernel.terminate();
 		}
 		else {
 			UThread.currentThread().finish();
 		}
-		return 0;
 	}
 
-	private int handleJoin(int pid, int status) {
+	private int handleJoin(int pid, int statusAddr) {
+		//get child of specified pid from Map children
 		UserProcess child = children.get(pid);
 		if (child == null) {
 			return -1;
 		}
+		//join on the child and after, remove the child from the Map
 		child.thread.join();
 		children.remove(pid);
 		child.parent = null;
 
+		//an int is 4 bytes, status is an int
+		//store as byte[] for writeVirtualMemory() to use
 		byte[] buf = new byte[4];
 		buf = Lib.bytesFromInt(child.exitStatus);
-		if (writeVirtualMemory(status, buf) != 4) {
-			return 0;
+
+		//check if 4 bytes, the status was written
+		if (writeVirtualMemory(statusAddr, buf) != 4) {
+			return -1;
+			//HAAALLLLPPPP ---- what do I return here???
+			//is it 1 or -1 or rather what's the difference
 		}
-		return 1;
+		return 0;
 	}
 
+
+	/**
+	 *
+	 *
+	 *
+	 */
 	private int handleExec(int fileNameVirtAddr, int argc, int argv) {
 		if (fileNameVirtAddr < 0 || argc < 0 || argv < 0) {
 			return -1;
@@ -513,7 +545,7 @@ public class UserProcess {
 			return -1;
 		}
 
-		return child.getPID();
+		return 0;
 	}
 
 /**
@@ -910,6 +942,7 @@ public class UserProcess {
 			processor.advancePC();
 			break;
 
+			//do something in default heee ------------------------------------
 		default:
 			Lib.debug(dbgProcess, "Unexpected exception: "
 					+ Processor.exceptionNames[cause]);
@@ -949,7 +982,7 @@ public class UserProcess {
 	private UserProcess parent;
 	private int pid = 0;
 	//private UThread thread;
-	private static Map<Integer, UserProcess> children = new HashMap<>();
+	private Map<Integer, UserProcess> children = new HashMap<>();
 	private int exitStatus;
 
 }
