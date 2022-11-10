@@ -455,6 +455,7 @@ public class UserProcess {
 
 		System.out.println("handleExit: is the children map empty before removing: " + children.isEmpty());
 		System.out.println("handleExit: the parent of this process: " + this.parent.getPID());
+		System.out.println("this process: " + this.getPID());
 		//because this process is exiting, gotta make the children independent
 		//by setting their parent reference (to this) to null
 		for (UserProcess child : children.values()) {
