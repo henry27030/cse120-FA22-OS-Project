@@ -566,6 +566,7 @@ public class UserProcess {
 
 		System.out.println("handleExec: before final return");
 		System.out.println("child PID: " + child.getPID());
+		System.out.println("handleExec: is the children map empty: " + children.isEmpty());
 		System.out.println("handleExec: testing gettablility of child: " + (children.get(child.pid)).getPID());
 
 		return child.getPID();
