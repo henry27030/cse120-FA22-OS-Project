@@ -467,23 +467,20 @@ public class UserProcess {
 		//by setting their parent reference (to this) to null and removing all
 		//children of this (parent) process
 
-		// for (UserProcess child : children.values()) {
-		// 	if (child != null) {
-		// 		if (child.parent == this) {
-		// 			System.out.println("the children of this process: " + child.getPID());
-		// 			//child.parent = null;
-		// 			children.remove(child.getPID());
-		//
-		// 			//maybe make a status here instead of deleting it
-		// 		}
-		// 	}
-		// }
+		for (UserProcess child : children.values()) {
+			if (child != null) {
+				if (child.parent.pid == this.pid) {
+					System.out.println("the children of this process: " + child.getPID());
+					//child.parent = null;
+					children.remove(child.getPID());
+				}
+			}
+		}
+
+
 		//and clear this process of its children Map
 		//children.clear();
 		System.out.println("handleExit: is the children map empty after removing: " + children.isEmpty());
-
-
-
 
 		//is this current process SUPPOSED TO remove itself from the parent's children list
 
@@ -501,6 +498,7 @@ public class UserProcess {
 		//if this is the last process, then use terminate()
 		if (pid == 0) {
 			Kernel.kernel.terminate();
+			//if terminate() is called, does exit() still continue to below?
 		}
 		UThread.currentThread().finish();
 		return 0;
