@@ -495,6 +495,7 @@ public class UserProcess {
 			parent.children.remove(this.getPID());
 			parent = null;
 		}
+		System.out.println("handleExit: 2nd is the children map empty after removing: " + children.isEmpty());
 
 		//if this is the last process, then use terminate()
 		if (pid == 0) {
