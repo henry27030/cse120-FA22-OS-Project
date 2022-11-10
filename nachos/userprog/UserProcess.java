@@ -467,7 +467,7 @@ public class UserProcess {
 		//because this process is exiting, gotta make the children independent
 		//by setting their parent reference (to this) to null and removing all
 		//children of this (parent) process
-		/*
+
 		for (UserProcess child : children.values()) {
 			if (child != null) {
 				if (child.parent == this) {
@@ -476,7 +476,7 @@ public class UserProcess {
 					children.remove(child.getPID());
 				}
 			}
-		}*/
+		}
 		//and clear this process of its children Map
 		//children.clear();
 		System.out.println("handleExit: is the children map empty after removing: " + children.isEmpty());
@@ -491,10 +491,10 @@ public class UserProcess {
 		//(tho in this case, it's a static list that contains all children)
 		//so use the pid to guarantee that this process only is removed
 		//this process and this process' children cleaned up by garbage collector
-		if (parent != null) {
-			parent.children.remove(this.getPID());
-			parent = null;
-		}
+		// if (parent != null) {
+		// 	parent.children.remove(this.getPID());
+		// 	parent = null;
+		// }
 		System.out.println("handleExit: 2nd is the children map empty after removing: " + children.isEmpty());
 
 		//if this is the last process, then use terminate()
@@ -520,7 +520,9 @@ public class UserProcess {
 		if (child == null) {
 			System.out.println("handleJoin: null child");
 			//child has already exited???????????? --------------------------------------
-			return 0;
+			//or child dont exist, hmmmm
+			//returns 1 or -1 based on the above
+			return 1;
 		}
 		//join on the child and after, remove the child from the Map
 		child.thread.join();
@@ -535,12 +537,12 @@ public class UserProcess {
 		//check if 4 bytes, the status was written
 		if (writeVirtualMemory(statusAddr, buf) != 4) {
 			System.out.println("handleJoin: wVM() failed");
-			return -1;
+			return 0;
 			//HAAALLLLPPPP ---- what do I return here???
 			//is it 1 or -1 or rather what's the difference
 		}
 		System.out.println("handleJoin: Before final return");
-		return 0;
+		return 1;
 	}
 
 
