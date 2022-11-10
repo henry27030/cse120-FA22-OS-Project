@@ -458,6 +458,7 @@ public class UserProcess {
 		System.out.println("this process: " + this.getPID());
 		//because this process is exiting, gotta make the children independent
 		//by setting their parent reference (to this) to null
+
 		for (UserProcess child : children.values()) {
 			System.out.println("the children of this process: " + child.getPID());
 			child.parent = null;
@@ -1013,7 +1014,7 @@ public class UserProcess {
 	private int pid = 0;
 	private static int pCounter = 0;
 	//private UThread thread;
-	private static Map<Integer, UserProcess> children = new HashMap<>();
+	private Map<Integer, UserProcess> children = new HashMap<>();
 	private int exitStatus;
 
 }
