@@ -479,6 +479,12 @@ public class UserProcess {
 	private int handleJoin(int pid, int statusAddr) {
 		System.out.println("handleJoin: the PID parameter: " + pid);
 		//get child of specified pid from Map children
+		System.out.println("handleJoin: is the children map empty: " + children.isEmpty());
+
+		for (Integer childkey : children.keySet()) {
+		    System.out.println("handleJoin: childKey" + childKey);
+		}
+
 		UserProcess child = children.get(Integer.valueOf(pid));
 		if (child == null) {
 			System.out.println("handleJoin: null child");
