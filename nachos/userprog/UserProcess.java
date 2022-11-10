@@ -551,7 +551,7 @@ public class UserProcess {
 		UserProcess child = new UserProcess();
 		child.parent = this;
 		child.pid = ++pCounter;
-		children.put(child.getPID(), child);
+		children.put(Integer.valueOf(child.pid, child);
 
 		if (!child.execute(fileName, args)) {
 			return -1;
@@ -559,6 +559,7 @@ public class UserProcess {
 
 		System.out.println("handleExec: before final return");
 		System.out.println("child PID: " + child.getPID());
+		System.out.println("handleExec: testing gettablility of child: " + (children.get(child.pid)).getPID());
 
 		return child.getPID();
 	}
