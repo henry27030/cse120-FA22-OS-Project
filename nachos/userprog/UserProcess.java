@@ -442,7 +442,14 @@ public class UserProcess {
 
 		//status to be transferred to join??
 		//or rather what kind of statuses can exist with exit()
-		this.exitStatus = status;
+
+		//passes this Process' exit status to its parent (unless its the root
+		//process) since the root process has no parent
+		if (this.parent != null) {
+			this.parent.exitStatus = status;
+		}
+
+
 		unloadSections();
 
 		//close all open files that this Process has opened
@@ -456,9 +463,11 @@ public class UserProcess {
 		System.out.println("handleExit: is the children map empty before removing: " + children.isEmpty());
 		//System.out.println("handleExit: the parent of this process: " + this.parent.getPID());
 		System.out.println("this process: " + this.getPID());
-		//because this process is exiting, gotta make the children independent
-		//by setting their parent reference (to this) to null
 
+		//because this process is exiting, gotta make the children independent
+		//by setting their parent reference (to this) to null and removing all
+		//children of this (parent) process
+		/*
 		for (UserProcess child : children.values()) {
 			if (child != null) {
 				if (child.parent == this) {
@@ -467,21 +476,25 @@ public class UserProcess {
 					children.remove(child.getPID());
 				}
 			}
-		}
+		}*/
 		//and clear this process of its children Map
 		//children.clear();
 		System.out.println("handleExit: is the children map empty after removing: " + children.isEmpty());
 
 
-		//remove this process from this processes parent's children Map
+
 
 		//is this current process SUPPOSED TO remove itself from the parent's children list
-		//(tho in this case, it's a static list that contains all childlren)
 
-		// if (parent != null) {
-		// 	parent.children.remove(this.getPID());
-		// 	parent = null;
-		// }
+
+		//remove this process from this processes parent's children Map
+		//(tho in this case, it's a static list that contains all children)
+		//so use the pid to guarantee that this process only is removed
+		//this process and this process' children cleaned up by garbage collector
+		if (parent != null) {
+			parent.children.remove(this.getPID());
+			parent = null;
+		}
 
 		//if this is the last process, then use terminate()
 		if (pid == 0) {
@@ -499,7 +512,7 @@ public class UserProcess {
 		System.out.println("handleJoin: is the children map empty: " + children.isEmpty());
 
 		for (Integer childkey : children.keySet()) {
-		    System.out.println("handleJoin: childKey" + Integer.valueOf(childkey));
+		    System.out.println("handleJoin: childKey: " + Integer.valueOf(childkey));
 		}
 
 		UserProcess child = children.get(Integer.valueOf(pid));
@@ -580,6 +593,7 @@ public class UserProcess {
 		if (!child.execute(fileName, args)) {
 			return -1;
 		}
+		//do I return -1 here?? ----------------------------------------------------------------------------
 
 		System.out.println("handleExec: before final return");
 		System.out.println("child PID: " + child.getPID());
