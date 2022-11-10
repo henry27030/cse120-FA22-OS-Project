@@ -30,6 +30,7 @@ public class UserKernel extends ThreadedKernel {
 				exceptionHandler();
 			}
 		});
+    //filling up the free addresses
     freeAddrs = new LinkedList<Integer>();
     for(int i = 0; i < Machine.processor().getNumPhysPages(); i++)
     {
@@ -129,14 +130,16 @@ public class UserKernel extends ThreadedKernel {
  
   public static int acquirePage()
   {
+    //acquires page back to front for ultimate testing.
     lock.acquire();
-    int addr = freeAddrs.pop();
+    int addr = freeAddrs.removeLast();
     lock.release();
     return addr;
   }
   
   public static void releasePage(int addr)
   {
+    //releases page by adding it to the back of the list. 
     lock.acquire();
     freeAddrs.add(addr);
     lock.release();

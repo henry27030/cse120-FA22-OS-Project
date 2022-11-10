@@ -163,18 +163,19 @@ public class UserProcess {
     int page, diff;
     do
     {
-      page = (vaddr + iterable) / pageSize;
-      diff = (vaddr + iterable) % pageSize;
+      page = (vaddr + iterable) / pageSize; //getting virtual page
+      diff = (vaddr + iterable) % pageSize; //getting offset within the page
       
-      int spaceLeft = pageSize - diff;
+      int spaceLeft = pageSize - diff; //the amount of space we can read from.
       
+      //is the case where we have too much in our length to write
       if(spaceLeft < length - iterable)
       {
         //System.out.println(iterable + " " + pageSize + " " + spaceLeft + " " + (length - iterable));
         System.arraycopy(memory, pageTable[page].ppn*pageSize + diff, data, offset+iterable, spaceLeft);
         iterable += spaceLeft;
       }
-      else
+      else //is the case where we can write all that's left within the page
       {
         System.arraycopy(memory, pageTable[page].ppn*pageSize + diff, data, offset+iterable, length - iterable);
         iterable += length - iterable;
@@ -229,18 +230,19 @@ public class UserProcess {
     int page, diff;
     do
     {
-      page = (vaddr + iterable) / pageSize;
-      diff = (vaddr + iterable) % pageSize;
+      page = (vaddr + iterable) / pageSize; //getting virtual page
+      diff = (vaddr + iterable) % pageSize; //getting offset within page
       
-      int spaceLeft = pageSize - diff;
+      int spaceLeft = pageSize - diff; //the amount of space we have left to write to.
       
-      if(spaceLeft < length - iterable)
+      //is the case where we have too much in our length to write
+      if(spaceLeft < length - iterable) //if we have to write more than we have space in the page for
       {
         //System.out.println(iterable + " " + pageSize + " " + spaceLeft + " " + (length - iterable));
         System.arraycopy(data, offset+iterable, memory, pageTable[page].ppn*pageSize + diff, spaceLeft);
         iterable += spaceLeft;
       }
-      else
+      else //is the case where we can write all that's left within the page
       {
         System.arraycopy(data, offset+iterable, memory, pageTable[page].ppn*pageSize + diff, length - iterable);
         iterable += length - iterable;
@@ -352,6 +354,7 @@ public class UserProcess {
 			return false;
 		}
    
+    //instantiating pageTable by acquiring free pages from the Kernel.
     pageTable = new TranslationEntry[numPages];
     for (int i = 0; i < numPages; i++)
     {
@@ -368,8 +371,10 @@ public class UserProcess {
 			for (int i = 0; i < section.getLength(); i++) {
 				int vpn = section.getFirstVPN() + i;
 
-				// for now, just assume virtual addresses=physical addresses
+				// // for now, just assume virtual addresses=physical addresses
+        // loading in physical from virtual.
 				section.loadPage(i, pageTable[vpn].ppn);
+        //setting the readOnly value based on the section's readOnly.
         pageTable[vpn].readOnly = section.isReadOnly();
 			}
 		}
@@ -381,6 +386,7 @@ public class UserProcess {
 	 * Release any resources allocated by <tt>loadSections()</tt>.
 	 */
 	protected void unloadSections() {
+    //simply releases all pages used by the pageTable.
     for(int i = 0; i < pageTable.length; i++)
     {
       UserKernel.releasePage(pageTable[i].ppn);
@@ -558,7 +564,7 @@ public class UserProcess {
     int finalRead = 0;
     int amountToRead = 0;
     //checking for valid buffer and size
-    if (readVirtualMemoryString(buffer,256) == null || size>(32*1024)) {
+    if (readVirtualMemoryString(buffer,256) == null || buffer+size>pageTable.length*pageSize) {
       return -1;
     }
     if (size<0) {//check for negative size
@@ -620,7 +626,7 @@ public class UserProcess {
     int amountToWrite = 0;
     int wroteToFile;
     //checking for valid buffer and size
-    if (readVirtualMemoryString(buffer,256) == null || size>(32*1024)) {
+    if (readVirtualMemoryString(buffer,256) == null || buffer+size>pageTable.length*pageSize) {
       return -1;
     }
     if (size<0) {//check for negative size
