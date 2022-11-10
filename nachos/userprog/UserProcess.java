@@ -463,12 +463,13 @@ public class UserProcess {
 			if (child != null) {
 				if (child.parent == this) {
 					System.out.println("the children of this process: " + child.getPID());
-					child.parent = null;
+					//child.parent = null;
+					children.remove(child.getPID());
 				}
 			}
 		}
 		//and clear this process of its children Map
-		children.clear();
+		//children.clear();
 
 		//remove this process from this processes parent's children Map
 		if (parent != null) {
