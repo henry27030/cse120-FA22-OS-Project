@@ -482,7 +482,7 @@ public class UserProcess {
 		System.out.println("handleJoin: is the children map empty: " + children.isEmpty());
 
 		for (Integer childkey : children.keySet()) {
-		    System.out.println("handleJoin: childKey" + childKey);
+		    System.out.println("handleJoin: childKey" + Integer.valueOf(childkey));
 		}
 
 		UserProcess child = children.get(Integer.valueOf(pid));
