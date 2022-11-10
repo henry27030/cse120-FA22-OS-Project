@@ -460,8 +460,12 @@ public class UserProcess {
 		//by setting their parent reference (to this) to null
 
 		for (UserProcess child : children.values()) {
-			System.out.println("the children of this process: " + child.getPID());
-			child.parent = null;
+			if (child != null) {
+				if (child.parent == this) {
+					System.out.println("the children of this process: " + child.getPID());
+					child.parent = null;
+				}
+			}
 		}
 		//and clear this process of its children Map
 		children.clear();
@@ -1014,7 +1018,7 @@ public class UserProcess {
 	private int pid = 0;
 	private static int pCounter = 0;
 	//private UThread thread;
-	private Map<Integer, UserProcess> children = new HashMap<>();
+	private static Map<Integer, UserProcess> children = new HashMap<>();
 	private int exitStatus;
 
 }
