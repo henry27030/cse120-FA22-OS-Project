@@ -512,6 +512,8 @@ public class UserProcess {
 			return -1;
 		}
 
+		System.out.println("handleExec: after first if");
+
 		String fileName = readVirtualMemoryString(fileNameVirtAddr, 256);
 		if (fileName == null) {
 			return -1;
@@ -519,6 +521,8 @@ public class UserProcess {
 		else if (fileName.length() == 0 || !fileName.endsWith(".coff")) {
 			return -1;
 		}
+
+		System.out.println("handleExec: after second if");
 
 		String[] args = new String[argc];
 		String arg = "";
@@ -539,6 +543,8 @@ public class UserProcess {
 			args[i] = arg;
 		}
 
+		System.out.println("handleExec: after for");
+
 		UserProcess child = new UserProcess();
 		child.parent = this;
 		children.put(child.getPID(), child);
@@ -546,6 +552,8 @@ public class UserProcess {
 		if (!child.execute(fileName, args)) {
 			return -1;
 		}
+
+		System.out.println("handleExec: before final return");
 
 		return child.getPID();
 	}
