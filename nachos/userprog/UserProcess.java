@@ -478,14 +478,14 @@ public class UserProcess {
 
 	private int handleJoin(int pid, int statusAddr) {
 		//get child of specified pid from Map children
-		UserProcess child = children.get(pid);
+		UserProcess child = children.get(Integer.valueOf(pid));
 		if (child == null) {
 			System.out.println("handleJoin: null child");
 			return -1;
 		}
 		//join on the child and after, remove the child from the Map
 		child.thread.join();
-		children.remove(pid);
+		children.remove(Integer.valueOf(pid));
 		child.parent = null;
 
 		//an int is 4 bytes, status is an int
