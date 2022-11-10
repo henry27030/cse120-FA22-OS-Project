@@ -554,6 +554,7 @@ public class UserProcess {
 		}
 
 		System.out.println("handleExec: before final return");
+		System.out.println("child PID: " + child.getPID());
 
 		return child.getPID();
 	}
