@@ -519,7 +519,8 @@ public class UserProcess {
 		UserProcess child = children.get(Integer.valueOf(pid));
 		if (child == null) {
 			System.out.println("handleJoin: null child");
-			return -1;
+			//child has already exited???????????? --------------------------------------
+			return 0;
 		}
 		//join on the child and after, remove the child from the Map
 		child.thread.join();
