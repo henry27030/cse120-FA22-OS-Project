@@ -430,7 +430,7 @@ public class UserProcess {
 	/**
 	 * Handle the exit() system call.
 	 */
-	private void handleExit(int status) {
+	private int handleExit(int status) {
 	        // Do not remove this call to the autoGrader...
 		Machine.autoGrader().finishingCurrentProcess(status);
 		// ...and leave it as the top of handleExit so that we
@@ -472,6 +472,7 @@ public class UserProcess {
 		else {
 			UThread.currentThread().finish();
 		}
+		return 0;
 	}
 
 	private int handleJoin(int pid, int statusAddr) {
