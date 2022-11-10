@@ -440,13 +440,21 @@ public class UserProcess {
 		Lib.debug(dbgProcess, "UserProcess.handleExit (" + status + ")");
 		// for now, unconditionally terminate with just one process
 
+
+
 		//status to be transferred to join??
 		//or rather what kind of statuses can exist with exit()
 
 		//passes this Process' exit status to its parent (unless its the root
 		//process) since the root process has no parent
 		if (this.parent != null) {
-			this.parent.exitStatus = status;
+			if (exitNormal == 1) {
+				childrenExitStatus.put(this.pid, status);
+			}
+			else {
+				childrenExitStatus.put(this.pid, null);
+			}
+			//this.parent.exitStatus = status;
 		}
 
 		unloadSections();
@@ -531,7 +539,10 @@ public class UserProcess {
 		//an int is 4 bytes, status is an int
 		//store as byte[] for writeVirtualMemory() to use
 		byte[] buf = new byte[4];
-		buf = Lib.bytesFromInt(child.exitStatus);
+		//buf = Lib.bytesFromInt(child.exitStatus);
+		buf = Lib.bytesFromInt(childrenExitStatus.get(pid));
+
+		//check the exitStatus
 
 		//check if 4 bytes, the status was written
 		if (writeVirtualMemory(statusAddr, buf) != 4) {
@@ -1000,7 +1011,9 @@ public class UserProcess {
 
 			//do something in default heee ------------------------------------
 		default:
+			exitNormal = 0;
 			handleExit(-1);
+			exitNormal = 1;
 			Lib.debug(dbgProcess, "Unexpected exception: "
 					+ Processor.exceptionNames[cause]);
 			Lib.assertNotReached("Unexpected exception");
@@ -1042,6 +1055,12 @@ public class UserProcess {
 	private static int pCounter = 0;
 	//private UThread thread;
 	private static Map<Integer, UserProcess> children = new HashMap<>();
+	private static Map<Integer, Integer> childrenExitStatus = new HashMap<>();
+	//make a map of int, exit status
+
+	private int exitNormal = 1;
+	//if false stick a null in map
+
 	private int exitStatus;
 
 }
