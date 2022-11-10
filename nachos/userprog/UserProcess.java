@@ -462,7 +462,7 @@ public class UserProcess {
 		//remove this process from parent's children Map
 		if (parent != null) {
 			parent.children.remove(this.getPID());
-			parent.child = null;
+			child.parent = null;
 		}
 
 		//if this is the last process, then use terminate()
