@@ -449,7 +449,6 @@ public class UserProcess {
 			this.parent.exitStatus = status;
 		}
 
-
 		unloadSections();
 
 		//close all open files that this Process has opened
@@ -468,15 +467,17 @@ public class UserProcess {
 		//by setting their parent reference (to this) to null and removing all
 		//children of this (parent) process
 
-		for (UserProcess child : children.values()) {
-			if (child != null) {
-				if (child.parent == this) {
-					System.out.println("the children of this process: " + child.getPID());
-					//child.parent = null;
-					children.remove(child.getPID());
-				}
-			}
-		}
+		// for (UserProcess child : children.values()) {
+		// 	if (child != null) {
+		// 		if (child.parent == this) {
+		// 			System.out.println("the children of this process: " + child.getPID());
+		// 			//child.parent = null;
+		// 			children.remove(child.getPID());
+		//
+		// 			//maybe make a status here instead of deleting it
+		// 		}
+		// 	}
+		// }
 		//and clear this process of its children Map
 		//children.clear();
 		System.out.println("handleExit: is the children map empty after removing: " + children.isEmpty());
@@ -501,9 +502,7 @@ public class UserProcess {
 		if (pid == 0) {
 			Kernel.kernel.terminate();
 		}
-		else {
-			UThread.currentThread().finish();
-		}
+		UThread.currentThread().finish();
 		return 0;
 	}
 
@@ -522,7 +521,9 @@ public class UserProcess {
 			//child has already exited???????????? --------------------------------------
 			//or child dont exist, hmmmm
 			//returns 1 or -1 based on the above
-			return 1;
+			//assuming exit does not remove children
+			//child==null means child dont exist
+			return -1;
 		}
 		//join on the child and after, remove the child from the Map
 		child.thread.join();
@@ -538,8 +539,6 @@ public class UserProcess {
 		if (writeVirtualMemory(statusAddr, buf) != 4) {
 			System.out.println("handleJoin: wVM() failed");
 			return 0;
-			//HAAALLLLPPPP ---- what do I return here???
-			//is it 1 or -1 or rather what's the difference
 		}
 		System.out.println("handleJoin: Before final return");
 		return 1;
@@ -988,7 +987,7 @@ public class UserProcess {
 	public void handleException(int cause) {
 		Processor processor = Machine.processor();
 
-    //unloadSections();
+    	unloadSections();
 
 		switch (cause) {
 		case Processor.exceptionSyscall:
