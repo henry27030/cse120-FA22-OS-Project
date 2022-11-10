@@ -3,6 +3,7 @@ package nachos.userprog;
 import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
+import java.util.*;
 
 /**
  * A kernel that can support multiple user processes.
@@ -29,6 +30,14 @@ public class UserKernel extends ThreadedKernel {
 				exceptionHandler();
 			}
 		});
+    //filling up the free addresses
+    freeAddrs = new LinkedList<Integer>();
+    for(int i = 0; i < Machine.processor().getNumPhysPages(); i++)
+    {
+      freeAddrs.add(i);
+    }
+    
+    lock = new Lock();
 	}
 
 	/**
@@ -118,10 +127,32 @@ public class UserKernel extends ThreadedKernel {
 	public void terminate() {
 		super.terminate();
 	}
+ 
+  public static int acquirePage()
+  {
+    //acquires page back to front for ultimate testing.
+    lock.acquire();
+    int addr = freeAddrs.removeLast();
+    lock.release();
+    return addr;
+  }
+  
+  public static void releasePage(int addr)
+  {
+    //releases page by adding it to the back of the list. 
+    lock.acquire();
+    freeAddrs.add(addr);
+    lock.release();
+  }
 
 	/** Globally accessible reference to the synchronized console. */
 	public static SynchConsole console;
 
 	// dummy variables to make javac smarter
 	private static Coff dummy1 = null;
+ 
+  //creation of linked list for physical addresses
+  private static LinkedList<Integer> freeAddrs;
+  
+  private static Lock lock;
 }
