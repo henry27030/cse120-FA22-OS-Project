@@ -431,7 +431,6 @@ public class UserProcess {
 	 * Handle the exit() system call.
 	 */
 	private int handleExit(int status) {
-		System.out.println("handleExit: the beginning");
 	        // Do not remove this call to the autoGrader...
 		Machine.autoGrader().finishingCurrentProcess(status);
 		// ...and leave it as the top of handleExit so that we
@@ -467,10 +466,6 @@ public class UserProcess {
 			}
 		}
 
-		System.out.println("handleExit: is the children map empty before removing: " + children.isEmpty());
-		//System.out.println("handleExit: the parent of this process: " + this.parent.getPID());
-		System.out.println("this process: " + this.getPID());
-
 		//because this process is exiting, gotta make the children independent
 		//by setting their parent reference (to this) to null and removing all
 		//children of this (parent) process
@@ -478,7 +473,6 @@ public class UserProcess {
 		for (UserProcess child : children.values()) {
 			if (child != null) {
 				if (child.parent.pid == this.pid) {
-					System.out.println("the children of this process: " + child.getPID());
 					//child.parent = null;
 					children.remove(child.getPID());
 				}
@@ -488,7 +482,6 @@ public class UserProcess {
 
 		//and clear this process of its children Map
 		//children.clear();
-		System.out.println("handleExit: is the children map empty after removing: " + children.isEmpty());
 
 		//is this current process SUPPOSED TO remove itself from the parent's children list
 
@@ -501,7 +494,6 @@ public class UserProcess {
 		// 	parent.children.remove(this.getPID());
 		// 	parent = null;
 		// }
-		System.out.println("handleExit: 2nd is the children map empty after removing: " + children.isEmpty());
 
 		//if this is the last process, then use terminate()
 		if (pid == 0) {
@@ -513,17 +505,9 @@ public class UserProcess {
 	}
 
 	private int handleJoin(int pid, int statusAddr) {
-		System.out.println("handleJoin: the PID parameter: " + pid);
 		//get child of specified pid from Map children
-		System.out.println("handleJoin: is the children map empty: " + children.isEmpty());
-
-		for (Integer childkey : children.keySet()) {
-		    System.out.println("handleJoin: childKey: " + Integer.valueOf(childkey));
-		}
-
 		UserProcess child = children.get(Integer.valueOf(pid));
 		if (child == null) {
-			System.out.println("handleJoin: null child");
 			//child has already exited???????????? --------------------------------------
 			//or child dont exist, hmmmm
 			//returns 1 or -1 based on the above
@@ -546,10 +530,8 @@ public class UserProcess {
 
 		//check if 4 bytes, the status was written
 		if (writeVirtualMemory(statusAddr, buf) != 4) {
-			System.out.println("handleJoin: wVM() failed");
 			return 0;
 		}
-		System.out.println("handleJoin: Before final return");
 		return 1;
 	}
 
@@ -564,8 +546,6 @@ public class UserProcess {
 			return -1;
 		}
 
-		System.out.println("handleExec: after first if");
-
 		String fileName = readVirtualMemoryString(fileNameVirtAddr, 256);
 		if (fileName == null) {
 			return -1;
@@ -573,8 +553,6 @@ public class UserProcess {
 		else if (fileName.length() == 0 || !fileName.endsWith(".coff")) {
 			return -1;
 		}
-
-		System.out.println("handleExec: after second if");
 
 		String[] args = new String[argc];
 		String arg = "";
@@ -595,8 +573,6 @@ public class UserProcess {
 			args[i] = arg;
 		}
 
-		System.out.println("handleExec: after for");
-
 		UserProcess child = new UserProcess();
 		child.parent = this;
 		child.pid = ++pCounter;
@@ -605,13 +581,6 @@ public class UserProcess {
 		if (!child.execute(fileName, args)) {
 			return -1;
 		}
-		//do I return -1 here?? ----------------------------------------------------------------------------
-
-		System.out.println("handleExec: before final return");
-		System.out.println("child PID: " + child.getPID());
-		System.out.println("handleExec: is the children map empty: " + children.isEmpty());
-		System.out.println("handleExec: testing gettablility of child: " + (children.get(child.pid)).getPID());
-
 		return child.getPID();
 	}
 
