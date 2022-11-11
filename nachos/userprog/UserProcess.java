@@ -428,7 +428,14 @@ public class UserProcess {
 	}
 
 	/**
-	 * Handle the exit() system call.
+	 * Handles the exit() system call.  Releases all page tables and closes
+	 * all open files.  Then disowns all children.  If this process is the
+	 * root process with PID=0, then terminate() is called.  If exitNormal != 1
+	 * will instead associate a null status rather than a valid exit status
+	 * for the exiting process.
+	 *
+	 * @param status - int representing exit status
+	 * @return - this actually doesnt matter
 	 */
 	private int handleExit(int status) {
 	        // Do not remove this call to the autoGrader...
@@ -436,16 +443,12 @@ public class UserProcess {
 		// ...and leave it as the top of handleExit so that we
 		// can grade your implementation.
 
-		Lib.debug(dbgProcess, "UserProcess.handleExit (" + status + ")");
 		// for now, unconditionally terminate with just one process
+		Lib.debug(dbgProcess, "UserProcess.handleExit (" + status + ")");
 
-
-
-		//status to be transferred to join??
-		//or rather what kind of statuses can exist with exit()
-
-		//passes this Process' exit status to its parent (unless its the root
-		//process) since the root process has no parent
+		//passes this Process' exit status to its parent by using a static
+		//HashMap<PID, exitStatus> (unless its the root process) since the root
+		//process has no parent
 		if (this.parent != null) {
 			if (exitNormal == 1) {
 				childrenExitStatus.put(this.pid, status);
@@ -453,7 +456,6 @@ public class UserProcess {
 			else {
 				childrenExitStatus.put(this.pid, null);
 			}
-			//this.parent.exitStatus = status;
 		}
 
 		unloadSections();
@@ -466,10 +468,8 @@ public class UserProcess {
 			}
 		}
 
-		//because this process is exiting, gotta make the children independent
-		//by setting their parent reference (to this) to null and removing all
-		//children of this (parent) process
-
+		//disowns all children of this process by checking if the child's
+		//parent has the same PID as this current process
 		for (UserProcess child : children.values()) {
 			if (child != null) {
 				if (child.parent.pid == this.pid) {
@@ -479,56 +479,47 @@ public class UserProcess {
 			}
 		}
 
-
-		//and clear this process of its children Map
-		//children.clear();
-
-		//is this current process SUPPOSED TO remove itself from the parent's children list
-
-
-		//remove this process from this processes parent's children Map
-		//(tho in this case, it's a static list that contains all children)
-		//so use the pid to guarantee that this process only is removed
-		//this process and this process' children cleaned up by garbage collector
-		// if (parent != null) {
-		// 	parent.children.remove(this.getPID());
-		// 	parent = null;
-		// }
-
-		//if this is the last process, then use terminate()
+		//if this is the root process, then use terminate()
 		if (pid == 0) {
 			Kernel.kernel.terminate();
-			//if terminate() is called, does exit() still continue to below?
 		}
 		UThread.currentThread().finish();
 		return 0;
 	}
 
+	/**
+	 * Handles the join() system call.  Will use KThread.join() to join.
+	 * If the child of specified PID to join to is not finished executing,
+	 * will wait until it is done.  Will write the child's exit status
+	 * (from the static HashMap<PID, exitStatus>) to virtual memory with the
+	 * provided address.  If the child to join to does not exist, or the exit
+	 * status was not valid, then will return early unsuccessful
+	 *
+	 * @param pid - int representing pid of child to join to
+	 * @param statusAddr - int representing virtual address to write status to
+	 * @return - int representing exits status of handleJoin()
+	 */
 	private int handleJoin(int pid, int statusAddr) {
 		//get child of specified pid from Map children
 		UserProcess child = children.get(Integer.valueOf(pid));
+		//could not find the child of specified PID in the static
+		//HashMap<PID, child>, the child does not exist
 		if (child == null) {
-			//child has already exited???????????? --------------------------------------
-			//or child dont exist, hmmmm
-			//returns 1 or -1 based on the above
-			//assuming exit does not remove children
-			//child==null means child dont exist
 			return -1;
 		}
 		//join on the child and after, remove the child from the Map
+		//and set its parent to null
 		child.thread.join();
 		children.remove(Integer.valueOf(pid));
 		child.parent = null;
 
-		//an int is 4 bytes, status is an int
+		//an int is 4 bytes, a valid status is an int
 		//store as byte[] for writeVirtualMemory() to use
 		byte[] buf = new byte[4];
-		//buf = Lib.bytesFromInt(child.exitStatus);
 		buf = Lib.bytesFromInt(childrenExitStatus.get(pid));
 
-		//check the exitStatus
-
-		//check if 4 bytes, the status was written
+		//check if 4 bytes were written, otherwise a null was written and
+		//return 0 for error
 		if (writeVirtualMemory(statusAddr, buf) != 4) {
 			return 0;
 		}
@@ -537,15 +528,23 @@ public class UserProcess {
 
 
 	/**
+	 * Handles the exec() system call.  Performs checks for valid inputs.
+	 * Then reads virtual memory for arguments to execute with.  Creates a new
+	 * process with unique PID and places a reference to it in the static
+	 * HashMap<PID, child>.  Then calls execute on the child.  Will return
+	 * early if unsuccessful.
 	 *
-	 *
-	 *
+	 * @param fileNameVirtAddr - int for the virtaddr with the filename to exec
+	 * @param argc - int for number of arguments
+	 * @param argv - int for argv :)
+	 * @return - int for exit status of handleExec()
 	 */
 	private int handleExec(int fileNameVirtAddr, int argc, int argv) {
+		//valid input checks
 		if (fileNameVirtAddr < 0 || argc < 0 || argv < 0) {
 			return -1;
 		}
-
+		//valid fileName check
 		String fileName = readVirtualMemoryString(fileNameVirtAddr, 256);
 		if (fileName == null) {
 			return -1;
@@ -560,6 +559,8 @@ public class UserProcess {
 		int byteCount = 0;
 		int virtualAddr = 0;
 
+		//check for valid byte count and argument when reading
+		//populate args[] with a valid argument
 		for (int i = 0; i < argc; i++) {
 			byteCount = readVirtualMemory(argv + 4 * i, buf);
 			if (byteCount != 4) {
@@ -573,11 +574,15 @@ public class UserProcess {
 			args[i] = arg;
 		}
 
+		//create a new child process with unique PID and place into static
+		//HashMap<PID, child>
 		UserProcess child = new UserProcess();
 		child.parent = this;
 		child.pid = ++pCounter;
 		children.put(Integer.valueOf(child.pid), child);
 
+		//execute on the child process with a filename and arguments
+		//and return early if unsuccessful
 		if (!child.execute(fileName, args)) {
 			return -1;
 		}
