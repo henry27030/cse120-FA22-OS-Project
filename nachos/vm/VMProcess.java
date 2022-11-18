@@ -54,7 +54,7 @@ public class VMProcess extends UserProcess {
     CoffSections = new int[numPages];
     for (int i=0; i<numPages; i++) {
       pageTable[i] = new TranslationEntry(i, UserKernel.acquirePage(), true, false, false, false);
-      pageTable[i].valid = false; //replace loadPage with setting as not valid
+      pageTable[i].valid = false; //replace with setting as not valid
       pageTable[i].readOnly = false;
     }
 		for (int s = 0; s < coff.getNumSections(); s++) {
