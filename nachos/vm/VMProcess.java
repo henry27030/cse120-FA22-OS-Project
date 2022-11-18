@@ -93,7 +93,7 @@ public class VMProcess extends UserProcess {
     case Processor.exceptionPageFault:
       //prepare requested page
       int badVPN = Machine.processor().readRegister(Processor.regBadVAddr);
-      prepRequestedPage(badVPN);
+      prepRequestedPage(badVPN/pageSize);//regBadVAddr gives you the bad VA register, so divide by pageSize to get vm index
       break;
 		default:
 			super.handleException(cause);
@@ -109,6 +109,7 @@ public class VMProcess extends UserProcess {
       CoffSection section = coff.getSection(CoffSections[badVPN]);
       section.loadPage(badVPN-section.getFirstVPN(), pageTable[badVPN].ppn);//badVPN-section.getFirstVPN=i from loadSection's loadPage usage
     } 
+    
     else {
       byte[] memory = Machine.processor().getMemory();
       Arrays.fill(memory, pageTable[badVPN].ppn*pageSize, pageTable[badVPN].ppn*pageSize + pageSize, (byte)0);
