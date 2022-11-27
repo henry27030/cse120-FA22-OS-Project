@@ -92,6 +92,23 @@ public class VMProcess extends UserProcess {
 
 		switch (cause) {
     case Processor.exceptionPageFault:
+	    //first check if physical memory is full
+	    //if not, prep requested page
+	    //if so, then evict a page with the clock algorithm
+	    //keep a global index to which page ur on, for each page in order checi if pinned, also keep a global starting index
+	    //if pinned, skip and move on to check next page
+	    //if global starting index reached (all pinned), wait using conditino variable
+	    //if not pinned, evict the page to free it and assign that space for the requested page to fill
+	    //
+	    //when evicting a page, check if dirty or not
+	    //if page dirty, evict to swap file and not disk
+	    //if page clean and contents on disk or swap file, we do nothing cause it's clean and the version on swap/disk is the same
+	    //then prep requested page from disk or swap (need to know if page was dirty to determine to grab from disk or swap)
+	    //im assuming this is where we need the inverted page table that does some global access thing to know if the page that caused the fault was dirty or clean
+	    //
+	    //when faulted again, will continue from index+1 onward
+	    //when end is reached, circle back to index 0, index = index % length of page table? or some other constant
+	    //
       //prepare requested page
       int badVPN = Machine.processor().readRegister(Processor.regBadVAddr);
       prepRequestedPage(badVPN/pageSize);//regBadVAddr gives you the bad VA register that page faulted, so divide by pageSize to get index(rounds down since int), like in hw3
@@ -247,6 +264,11 @@ public class VMProcess extends UserProcess {
 		return iterable;
 	}
 
+
+	//create some global swap file
+	//	in VMKernel? or a static variable in VMProcess dunno
+	//create methods here to read/write swap file
+
   private int[] CoffSections;
   
 	private static final int pageSize = Processor.pageSize;
@@ -254,4 +276,9 @@ public class VMProcess extends UserProcess {
 	private static final char dbgProcess = 'a';
 
 	private static final char dbgVM = 'v';
+
+	public bool pinned = false;
+
+	public VMProcess parent;
+
 }
