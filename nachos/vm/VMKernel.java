@@ -14,6 +14,9 @@ public class VMKernel extends UserKernel {
 	 */
 	public VMKernel() {
 		super();
+		cv = new Condition(lock);
+		invertedPageTable = new ArrayList<Pair<Integer, TranslationEntry>>();
+
 	}
 
 	/**
@@ -43,6 +46,65 @@ public class VMKernel extends UserKernel {
 	public void terminate() {
 		super.terminate();
 	}
+
+	public static int clockAlgorithm() {
+		lock.acquire();
+		//what type is a page
+				
+
+		int page = 0;
+	
+		while (true) {
+			if (pinnedPages[invertedPageTable.get(startIndex).getKey()]) {				
+				startIndex = (startIndex+1) % Machine.processor().getNumPhysPages();
+				continue;
+			}
+			if (invertedPageTable.get(startIndex).getValue().used == true) {
+				invertedPageTable.get(startIndex).getValue().used = false;
+				startIndex = (startIndex+1) % Machine.processor().getNumPhysPages();
+			}
+			else {
+				if (numPinnedPages == Machine.processor().getNumPhysPages()) {
+					cv.sleep();
+				}
+				else {
+					//we found a page to evict
+					page = invertedPageTable.get(startIndex).getKey();
+					startIndex = (startIndex+1) % Machine.processor().getNumPhysPages();
+					break;
+				}
+			}
+		}
+		lock.release();
+		return page;
+	}
+
+	public static void evictPage(int page) {
+		HashMap<Integer, TranslationEntry> hmIPT = new HashMap<Integer, TranslationEntry>();
+		for (Pair p : invertedPageTable) {
+			hmIPT.put(p.getKey(), p.getValue());
+		}
+
+		if (hmIPT.get(page).dirty == true) {
+			
+		}		
+	}
+
+	private static int startIndex = 0;
+
+	//ppn, if pinned
+	private static HashMap<Integer, bool> pinnedPages;
+	
+	public static int numPinnedPages = 0;
+
+	//ppn, process
+
+	public static ArrayList<Pair<Integer, TranslationEntry>> invertedPageTable;
+
+	public Condition cv;
+
+
+
 
 	// dummy variables to make javac smarter
 	private static VMProcess dummy1 = null;
