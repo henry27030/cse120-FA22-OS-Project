@@ -27,6 +27,14 @@ public class VMKernel extends UserKernel {
 	 */
 	public void initialize(String[] args) {
 		super.initialize(args);
+    ThreadedKernel.fileSystem.remove("EMHSwapFile");
+    swapFile = ThreadedKernel.fileSystem.open("EMHSwapFile");
+    
+    sfFreePages = new LinkedList<Integer>();
+    sfFreePages.addFirst(0);
+    pgsOnDisk++;
+    
+    pageLocations = new HashMap<TranslationEntry, Integer>();
 	}
 
 	/**
@@ -49,8 +57,50 @@ public class VMKernel extends UserKernel {
 	public void terminate() {
 		super.terminate();
 	}
+ 
+  //parameters: entry
+  //return: spn
+  public static int sfSave(TranslationEntry entry)
+  {
+    int spn = sfFreePages.removeFirst();
+    
+    if(SFreePages.isEmpty())
+    {
+      SFreePages.addLast(currPages);
+      pgsOnDisk++;
+    }
+    
+    byte[] memory = Machine.processor().getMemory();
+    int pageSize = processor.pageSize;
+    
+    swapFile.write(spn*pageSize, memory, entry.ppn*pageSize, pageSize);
+    //might need to do stuff to the translation entry?
+    
+    pageLocations.put(entry, spn);
+  }
+  
 
-	public static TranslationEntry clockAlgorithm() {
+  //paremeters: spn, ppn
+  //sfRetrieve writes the data from an spn to the ppn
+  //specified in the translationEntry
+  public static void sfRetrieve(TranslationEntry entry)
+  {
+    byte[] memory = Machine.processor().getMemory();
+    int pageSize = processor.pageSize;
+    int spn = pageLocations.get(entry);
+    
+    swapFile.read(spn*pageSize, memory, entry.ppn*pageSize, pageSize);
+  }
+  
+  //spn to clear
+  //clears a spot on the swapFile
+  public static void sfClear(TranslationEntry entry)
+  {
+    sfFreePages.addFirst(pageLocations.get(entry));
+    pageLocations.remove(entry);
+  }
+
+  public static TranslationEntry clockAlgorithm() {
 		lock.acquire();
 		//what type is a page
 				
@@ -98,7 +148,8 @@ public class VMKernel extends UserKernel {
 		}	
 	}
 
-	//used to iterate through the invertedPageTable, also serves as the ppn since the index of the invertedPageTable is the ppn
+  
+  	//used to iterate through the invertedPageTable, also serves as the ppn since the index of the invertedPageTable is the ppn
 	private static int clockIndex = 0;
 
 	//array of pinnedPages, with ppn as index, boolean as elements
@@ -112,10 +163,18 @@ public class VMKernel extends UserKernel {
 
 
 	public static Condition cv;
-
-
+  
 	// dummy variables to make javac smarter
 	private static VMProcess dummy1 = null;
 
 	private static final char dbgVM = 'v';
+ 
+  //number of pages on the disk
+  private static int pgsOnDisk = 0;
+ 
+  private OpenFile swapFile;
+  //spn
+  private LinkedList<Integer> sfFreePages;
+  //entry, spn
+  private HashMap<TranslationEntry, Integer> pageLocations;
 }
