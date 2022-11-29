@@ -15,7 +15,10 @@ public class VMKernel extends UserKernel {
 	public VMKernel() {
 		super();
 		cv = new Condition(lock);
-		invertedPageTable = new ArrayList<Pair<Integer, TranslationEntry>>();
+	}
+	
+	//Initialize the static variables here
+	static {
 
 	}
 
@@ -47,21 +50,24 @@ public class VMKernel extends UserKernel {
 		super.terminate();
 	}
 
-	public static int clockAlgorithm() {
+	public static TranslationEntry clockAlgorithm() {
 		lock.acquire();
 		//what type is a page
 				
 
-		int page = 0;
+		TranslationEntry page = null;
 	
 		while (true) {
-			if (pinnedPages[invertedPageTable.get(startIndex).getKey()]) {				
-				startIndex = (startIndex+1) % Machine.processor().getNumPhysPages();
+			if (numPinnedPages == Machine.processor().getNumPhysPages()) {
+				cv.sleep();
+			}
+			if (pinnedPages[clockIndex]) {				
+				clockIndex = (clockIndex+1) % Machine.processor().getNumPhysPages();
 				continue;
 			}
-			if (invertedPageTable.get(startIndex).getValue().used == true) {
-				invertedPageTable.get(startIndex).getValue().used = false;
-				startIndex = (startIndex+1) % Machine.processor().getNumPhysPages();
+			if (invertedPageTable[clockIndex].used) {
+				invertedPageTable[clockIndex].used = false;
+				clockIndex = (clockIndex+1) % Machine.processor().getNumPhysPages();
 			}
 			else {
 				if (numPinnedPages == Machine.processor().getNumPhysPages()) {
@@ -69,8 +75,8 @@ public class VMKernel extends UserKernel {
 				}
 				else {
 					//we found a page to evict
-					page = invertedPageTable.get(startIndex).getKey();
-					startIndex = (startIndex+1) % Machine.processor().getNumPhysPages();
+					page = invertedPageTable[clockIndex];
+					clockIndex = (clockIndex+1) % Machine.processor().getNumPhysPages();
 					break;
 				}
 			}
@@ -79,31 +85,33 @@ public class VMKernel extends UserKernel {
 		return page;
 	}
 
-	public static void evictPage(int page) {
-		HashMap<Integer, TranslationEntry> hmIPT = new HashMap<Integer, TranslationEntry>();
-		for (Pair p : invertedPageTable) {
-			hmIPT.put(p.getKey(), p.getValue());
-		}
-
-		if (hmIPT.get(page).dirty == true) {
-			
-		}		
+	public static void evictPage(TranslationEntry page) {
+		if (page.dirty) {
+			//if the page is not in the swapfile
+			if (page.vpn == -1) {
+				//append a page to the swapfile or create it if it dun exist
+				//what's that swapfile page's spn?
+				//page.vpn = thatpage's spn
+			}
+			//write to swap[vpn] the data currently in physical memory[page.vpn]
+			invertedPageTable[page.vpn].valid = false;
+		}	
 	}
 
-	private static int startIndex = 0;
+	//used to iterate through the invertedPageTable, also serves as the ppn since the index of the invertedPageTable is the ppn
+	private static int clockIndex = 0;
 
-	//ppn, if pinned
-	private static HashMap<Integer, bool> pinnedPages;
+	//array of pinnedPages, with ppn as index, boolean as elements
+	public static boolean[] pinnedPages = new boolean[Machine.processor().getNumPhysPages()];
 	
 	public static int numPinnedPages = 0;
 
-	//ppn, process
-
-	public static ArrayList<Pair<Integer, TranslationEntry>> invertedPageTable;
-
-	public Condition cv;
+	//invertedPageTable, with ppn as index, TranslationEntry as elements
+	public static TranslationEntry[] invertedPageTable = new TranslationEntry[Machine.processor().getNumPhysPages()];
 
 
+
+	public static Condition cv;
 
 
 	// dummy variables to make javac smarter

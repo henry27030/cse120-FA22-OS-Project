@@ -93,8 +93,10 @@ public class VMProcess extends UserProcess {
 		switch (cause) {
 		    case Processor.exceptionPageFault:
 			//eviction here
-
-		      //prepare requested page
+			//if there are no free pages, access from VMKernel's parent, UserKernel
+				
+				VMKernel.evictPage(VMKernel.clockAlgorithm());
+		      //prepare requested page (once there is a free page)
 		      int badVPN = Machine.processor().readRegister(Processor.regBadVAddr);
 		      prepRequestedPage(badVPN/pageSize);//regBadVAddr gives you the bad VA register that page faulted, so divide by pageSize to get index(rounds down since int), like in hw3
 		      break;
