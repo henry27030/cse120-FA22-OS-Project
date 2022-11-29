@@ -53,7 +53,7 @@ public class VMProcess extends UserProcess {
     pageTable = new TranslationEntry[numPages];
     CoffSections = new int[numPages];
     for (int i=0; i<numPages; i++) {
-      pageTable[i] = new TranslationEntry(i, UserKernel.acquirePage(), true, false, false, false);
+      pageTable[i] = new TranslationEntry(i, -1, true, false, false, false);
       pageTable[i].valid = false; //replace with setting as not valid
       pageTable[i].readOnly = false;
     }
@@ -91,16 +91,23 @@ public class VMProcess extends UserProcess {
 		Processor processor = Machine.processor();
 
 		switch (cause) {
-    case Processor.exceptionPageFault:
-      //prepare requested page
-      int badVPN = Machine.processor().readRegister(Processor.regBadVAddr);
-      prepRequestedPage(badVPN/pageSize);//regBadVAddr gives you the bad VA register that page faulted, so divide by pageSize to get index(rounds down since int), like in hw3
-      break;
+		    case Processor.exceptionPageFault:
+			//eviction here
+			//if there are no free pages, access from VMKernel's parent, UserKernel
+				
+				VMKernel.evictPage(VMKernel.clockAlgorithm());
+		      //prepare requested page (once there is a free page)
+		      int badVPN = Machine.processor().readRegister(Processor.regBadVAddr);
+		      prepRequestedPage(badVPN/pageSize);//regBadVAddr gives you the bad VA register that page faulted, so divide by pageSize to get index(rounds down since int), like in hw3
+		      break;
 		default:
 			super.handleException(cause);
 			break;
 		}
 	}
+
+	
+
   public void prepRequestedPage (int badVPN) {
     //pageTable[badVPN] is invalid
     //3 cases: fault on a code page, fault on a data page, fault on a stack page/args page
@@ -247,6 +254,11 @@ public class VMProcess extends UserProcess {
 		return iterable;
 	}
 
+
+	//create some global swap file
+	//	in VMKernel? or a static variable in VMProcess dunno
+	//create methods here to read/write swap file
+
   private int[] CoffSections;
   
 	private static final int pageSize = Processor.pageSize;
@@ -254,4 +266,8 @@ public class VMProcess extends UserProcess {
 	private static final char dbgProcess = 'a';
 
 	private static final char dbgVM = 'v';
+
+
+	public VMProcess parent;
+
 }
