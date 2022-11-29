@@ -28,7 +28,7 @@ public class VMKernel extends UserKernel {
     sfFreePages.addFirst(0);
     pgsOnDisk++;
     
-    pageLocations = new HashMap<Integer, Integer>();
+    pageLocations = new HashMap<TranslationEntry, Integer>();
 	}
 
 	/**
@@ -76,19 +76,21 @@ public class VMKernel extends UserKernel {
   //paremeters: spn, ppn
   //sfRetrieve writes the data from an spn to the ppn
   //specified in the translationEntry
-  public static void sfRetrieve(int spn, TranslationEntry entry)
+  public static void sfRetrieve(TranslationEntry entry)
   {
     byte[] memory = Machine.processor().getMemory();
     int pageSize = processor.pageSize;
+    int spn = pageLocations.get(entry);
     
     swapFile.read(spn*pageSize, memory, entry.ppn*pageSize, pageSize);
   }
   
   //spn to clear
   //clears a spot on the swapFile
-  public static void sfClear(int spn)
+  public static void sfClear(TranslationEntry entry)
   {
-    sfFreePages.addFirst(spn);
+    sfFreePages.addFirst(pageLocations.get(entry));
+    pageLocations.remove(entry);
   }
   
 	// dummy variables to make javac smarter
@@ -102,6 +104,6 @@ public class VMKernel extends UserKernel {
   private OpenFile swapFile;
   //spn
   private LinkedList<Integer> sfFreePages;
-  //vpn, spn
-  private HashMap<Integer, Integer> pageLocations;
+  //entry, spn
+  private HashMap<TranslationEntry, Integer> pageLocations;
 }
