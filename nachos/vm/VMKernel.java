@@ -21,14 +21,6 @@ public class VMKernel extends UserKernel {
 	 */
 	public void initialize(String[] args) {
 		super.initialize(args);
-    ThreadedKernel.fileSystem.remove("EMHSwapFile");
-    swapFile = ThreadedKernel.fileSystem.open("EMHSwapFile");
-    
-    sfFreePages = new LinkedList<Integer>();
-    sfFreePages.addFirst(0);
-    pgsOnDisk++;
-    
-    pageLocations = new HashMap<Integer, Integer>();
 	}
 
 	/**
@@ -51,57 +43,9 @@ public class VMKernel extends UserKernel {
 	public void terminate() {
 		super.terminate();
 	}
- 
-  //parameters: entry
-  //return: spn
-  public static int sfSave(TranslationEntry entry)
-  {
-    int spn = sfFreePages.removeFirst();
-    
-    if(SFreePages.isEmpty())
-    {
-      SFreePages.addLast(currPages);
-      pgsOnDisk++;
-    }
-    
-    byte[] memory = Machine.processor().getMemory();
-    int pageSize = processor.pageSize;
-    
-    swapFile.write(spn*pageSize, memory, entry.ppn*pageSize, pageSize);
-    //might need to do stuff to the translation entry?
-    
-    pageLocations.put(entry, spn);
-  }
 
-  //paremeters: spn, ppn
-  //sfRetrieve writes the data from an spn to the ppn
-  //specified in the translationEntry
-  public static void sfRetrieve(int spn, TranslationEntry entry)
-  {
-    byte[] memory = Machine.processor().getMemory();
-    int pageSize = processor.pageSize;
-    
-    swapFile.read(spn*pageSize, memory, entry.ppn*pageSize, pageSize);
-  }
-  
-  //spn to clear
-  //clears a spot on the swapFile
-  public static void sfClear(int spn)
-  {
-    sfFreePages.addFirst(spn);
-  }
-  
 	// dummy variables to make javac smarter
 	private static VMProcess dummy1 = null;
 
 	private static final char dbgVM = 'v';
- 
-  //number of pages on the disk
-  private static int pgsOnDisk = 0;
- 
-  private OpenFile swapFile;
-  //spn
-  private LinkedList<Integer> sfFreePages;
-  //vpn, spn
-  private HashMap<Integer, Integer> pageLocations;
 }
