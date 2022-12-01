@@ -62,7 +62,7 @@ public class VMKernel extends UserKernel {
     
     if(sfFreePages.isEmpty())
     {
-      sfFreePages.addLast(currPages);
+      sfFreePages.addLast(pgsOnDisk);
       pgsOnDisk++;
     }
     
@@ -73,7 +73,7 @@ public class VMKernel extends UserKernel {
     //might need to do stuff to the translation entry?
     
     pageLocations.put(entry, spn);
-	return spn;
+	  return spn;
   }
   
 
@@ -101,7 +101,6 @@ public class VMKernel extends UserKernel {
 		lock.acquire();
 		//what type is a page
 				
-
 		TranslationEntry page = null;
 	
 		while (true) {
@@ -129,14 +128,16 @@ public class VMKernel extends UserKernel {
 				System.out.println("in an infinite loop " + clockIndex);
 			}
 		}
+   
 		lock.release();
 		return page;
 	}
 
 	public static void evictPage(TranslationEntry page) {
-		if (page.dirty) {
+		
+    if (page.dirty) {
 			//if the page is not in the swapfile
-			if (page.vpn == -1) {
+			if (page.valid == false) {
 				page.vpn = VMKernel.sfSave(page);
 				//append a page to the swapfile or create it if it dun exist
 				//what's that swapfile page's spn?
@@ -149,8 +150,9 @@ public class VMKernel extends UserKernel {
 				VMKernel.sfSave(page);
 				//write to swap[vpn] the data currently in physical memory[page.vpn]
 			}
-			invertedPageTable[page.vpn].valid = false;
-		}	
+		}
+    invertedPageTable[page.ppn].valid = false;
+    freeAddrs.addLast(page.ppn);
 	}
 
   
@@ -184,6 +186,4 @@ public class VMKernel extends UserKernel {
   private static LinkedList<Integer> sfFreePages;
   //entry, spn
   private static HashMap<TranslationEntry, Integer> pageLocations;
-
-	private static int currPages = 0;
 }

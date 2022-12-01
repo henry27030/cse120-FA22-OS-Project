@@ -46,14 +46,19 @@ public class VMProcess extends UserProcess {
 		// some are in COFF AND pageTable while some are not in COFF but ARE in pageTable, but all are initialized as invalid
 		// COFF is executable so ReadOnly
 		pageTable = new TranslationEntry[numPages];
+   
 		//creates the page table inside of loadsections?
 		CoffSections = new int[numPages];
+    Arrays.fill(CoffSections, -1);
+   
 		for (int i=0; i<numPages; i++) {
-		//vpn, spn, valid, readonly, used, dirty
-		pageTable[i] = new TranslationEntry(-1, -1, true, false, false, false);
-		pageTable[i].valid = false; //replace with setting as not valid
-		pageTable[i].readOnly = false;
+		  //vpn, spn, valid, readonly, used, dirty
+		  pageTable[i] = new TranslationEntry(-1, -1, true, false, false, false);
+		  pageTable[i].valid = false; //replace with setting as not valid
+		  pageTable[i].readOnly = false;
 		}
+   
+    
 		for (int s = 0; s < coff.getNumSections(); s++) {
 			CoffSection section = coff.getSection(s);
 
@@ -61,11 +66,11 @@ public class VMProcess extends UserProcess {
 					+ " section (" + section.getLength() + " pages)");
 
 			for (int i = 0; i < section.getLength(); i++) {
-				int vpn = section.getFirstVPN() + i;
-			pageTable[vpn].readOnly = section.isReadOnly();
-			System.out.println("COFF READ ONLY?: " + pageTable[vpn].readOnly);
-			CoffSections[vpn]=s;// to match to the pageTable index that is set to readOnly to load in the case of a page fault
-			//set to s so that we can call loadPage later in a similar to way to initial implementation
+			  int vpn = section.getFirstVPN() + i;
+			  pageTable[vpn].readOnly = section.isReadOnly();
+			  System.out.println("COFF READ ONLY?: " + pageTable[vpn].readOnly);
+			  CoffSections[vpn]=s;// to match to the pageTable index that is set to readOnly to load in the case of a page fault
+			  //set to s so that we can call loadPage later in a similar to way to initial implementation
 			}
 		}
 		return true;
@@ -90,23 +95,28 @@ public class VMProcess extends UserProcess {
 
 		switch (cause) {
 		    case Processor.exceptionPageFault:
-			System.out.println("PAGE FAULT!!!: " + cause);
-			//eviction here
-			//if there are no free pages, access from VMKernel's parent, UserKernel
-			if (VMKernel.freeAddrs.isEmpty()) {
-				VMKernel.evictPage(VMKernel.clockAlgorithm());
-			}
-		      //prepare requested page (once there is a free page)
-		      int badVPN = Machine.processor().readRegister(Processor.regBadVAddr);
-		      prepRequestedPage(badVPN/pageSize);//regBadVAddr gives you the bad VA register that page faulted, so divide by pageSize to get index(rounds down since int), like in hw3
+			    pageFault(cause, Machine.processor().readRegister(Processor.regBadVAddr));
 			
 		      break;
 		default:
-			System.out.println("DEFAULT EXCEPTION :(((((");
+			//System.out.println("DEFAULT EXCEPTION :(((((");
 			super.handleException(cause);
 			break;
 		}
 	}
+ 
+  public void pageFault(int cause, int badVPN)
+  { 
+          //System.out.println("PAGE FAULT!!!: " + cause);
+			    //eviction here
+			    //if there are no free pages, access from VMKernel's parent, UserKernel
+			    if (VMKernel.freeAddrs.isEmpty()) {
+				    VMKernel.evictPage(VMKernel.clockAlgorithm());
+			    }
+        //prepare requested page (once there is a free page)
+		    prepRequestedPage(badVPN/pageSize);//regBadVAddr gives you the bad VA register that page faulted, so divide by pageSize to get index(rounds down since int), like in hw3
+  }
+  
 
 	
 	//call prepreqpage inside of read/write virt mem if vpn is invalid and check using .valid
@@ -118,38 +128,46 @@ public class VMProcess extends UserProcess {
 	//unpin
 
   public void prepRequestedPage (int badVPN) {
-	//pageTable[badVPN] is invalid
-	//3 cases: fault on a code page, fault on a data page, fault on a stack page/args page
-	//how to tell difference between these 3 pages?
-	//first two cases, it is in the COFF file, and these files are readOnly true
+	  //pageTable[badVPN] is invalid
+	  //3 cases: fault on a code page, fault on a data page, fault on a stack page/args page
+	  //how to tell difference between these 3 pages?
+	  //first two cases, it is in the COFF file, and these files are readOnly true
 
-	//lock
-	//use the free pages list to get a valid ppn	
-	//
-	//unlock
-
-	//use for the loop over each coff and check first vpn and length to check if within the coff
-	//if vpn inn coff load from coff, if not then 0 fill it
-
-
-	if (pageTable[badVPN].readOnly==true) {  //if page in coff call sectionloadPage()
-	//if () //LOOK AT THE PSEUDOCODE
-		CoffSection section = coff.getSection(CoffSections[badVPN]);//CoffSections[badVPN]=s
-		section.loadPage(badVPN-section.getFirstVPN(), pageTable[badVPN].ppn);//badVPN-section.getFirstVPN=i from UserProcess's loadPage(i, ppn)
-	} 
-	//3rd case, so zero-fill
-	else {
-		byte[] memory = Machine.processor().getMemory();
-		Arrays.fill(memory, pageTable[badVPN].ppn*pageSize, pageTable[badVPN].ppn*pageSize + pageSize, (byte)0);
-    	}
-
-
-	
-
-
-    	pageTable[badVPN].valid=true;
-	System.out.println("about to fill the IPT");
-	VMKernel.invertedPageTable[pageTable[badVPN].ppn] = pageTable[badVPN];
+  	//lock
+  	//use the free pages list to get a valid ppn	
+  	//
+  	//unlock
+  
+  	//use for the loop over each coff and check first vpn and length to check if within the coff
+  	//if vpn inn coff load from coff, if not then 0 fill it
+    Lock lock = new Lock();
+    lock.acquire();
+    
+    //System.out.println("Before:" + pageTable[badVPN].ppn);
+    //System.out.println(VMKernel.freeAddrs);
+    pageTable[badVPN].ppn = VMKernel.acquirePage();
+    //System.out.println("After:" + pageTable[badVPN].ppn);
+  
+    if(pageTable[badVPN].dirty == true)
+    {
+      VMKernel.sfRetrieve(pageTable[badVPN]);
+    }
+    else
+    {
+      if (CoffSections[badVPN] != -1) {  //if page in coff call sectionloadPage()
+  		  CoffSection section = coff.getSection(CoffSections[badVPN]);//CoffSections[badVPN]=s
+  		  section.loadPage(badVPN-section.getFirstVPN(), pageTable[badVPN].ppn);//badVPN-section.getFirstVPN=i from UserProcess's loadPage(i, ppn)
+  	  }
+  	  else{
+  		  byte[] memory = Machine.processor().getMemory();
+  		  Arrays.fill(memory, pageTable[badVPN].ppn*pageSize, pageTable[badVPN].ppn*pageSize + pageSize, (byte)0);
+   	  }
+    }
+    
+ 	  pageTable[badVPN].valid=true;
+  	//System.out.println("about to fill the IPT");
+  	VMKernel.invertedPageTable[pageTable[badVPN].ppn] = pageTable[badVPN];
+    lock.release();
   }
 
 
@@ -203,11 +221,17 @@ public class VMProcess extends UserProcess {
     int page, diff;
     do
     {
-
       page = (vaddr + iterable) / pageSize; //getting virtual page
       diff = (vaddr + iterable) % pageSize; //getting offset within the page
       
       int spaceLeft = pageSize - diff; //the amount of space we can read from.
+      
+      if(pageTable[page].valid == false)
+      {
+        pageFault(1, page*pageSize);
+      }
+      
+      VMKernel.pinnedPages[pageTable[page].ppn] = true;
       
       //is the case where we have too much in our length to write
       if(spaceLeft < length - iterable)
@@ -221,8 +245,11 @@ public class VMProcess extends UserProcess {
         System.arraycopy(memory, pageTable[page].ppn*pageSize + diff, data, offset+iterable, length - iterable);
         iterable += length - iterable;
       }
+      
+      VMKernel.pinnedPages[pageTable[page].ppn] = false;
     }
     while(iterable < length);
+    
 
 		return iterable;
 	}
@@ -273,6 +300,14 @@ public class VMProcess extends UserProcess {
       page = (vaddr + iterable) / pageSize; //getting virtual page
       diff = (vaddr + iterable) % pageSize; //getting offset within page
       
+      
+      if(pageTable[page].valid == false)
+      {
+        pageFault(1, page*pageSize);
+      }
+      
+      VMKernel.pinnedPages[pageTable[page].ppn] = true;      
+      
       int spaceLeft = pageSize - diff; //the amount of space we have left to write to.
       
       //is the case where we have too much in our length to write
@@ -288,6 +323,8 @@ public class VMProcess extends UserProcess {
         System.arraycopy(data, offset+iterable, memory, pageTable[page].ppn*pageSize + diff, length - iterable);
         iterable += length - iterable;
       }
+      
+      VMKernel.pinnedPages[pageTable[page].ppn] = false;            
     }
     while(iterable < length);
 
