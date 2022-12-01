@@ -4,6 +4,7 @@ import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
 import nachos.vm.*;
+import java.util.*;
 
 /**
  * A kernel that can support multiple demand-paging user processes.
@@ -16,11 +17,6 @@ public class VMKernel extends UserKernel {
 		super();
 		cv = new Condition(lock);
 	}
-	
-	//Initialize the static variables here
-	static {
-
-	}
 
 	/**
 	 * Initialize this kernel.
@@ -28,7 +24,7 @@ public class VMKernel extends UserKernel {
 	public void initialize(String[] args) {
 		super.initialize(args);
     ThreadedKernel.fileSystem.remove("EMHSwapFile");
-    swapFile = ThreadedKernel.fileSystem.open("EMHSwapFile");
+    swapFile = ThreadedKernel.fileSystem.open("EMHSwapFile", true);
     
     sfFreePages = new LinkedList<Integer>();
     sfFreePages.addFirst(0);
@@ -64,19 +60,20 @@ public class VMKernel extends UserKernel {
   {
     int spn = sfFreePages.removeFirst();
     
-    if(SFreePages.isEmpty())
+    if(sfFreePages.isEmpty())
     {
-      SFreePages.addLast(currPages);
+      sfFreePages.addLast(currPages);
       pgsOnDisk++;
     }
     
     byte[] memory = Machine.processor().getMemory();
-    int pageSize = processor.pageSize;
+    int pageSize = Machine.processor().pageSize;
     
     swapFile.write(spn*pageSize, memory, entry.ppn*pageSize, pageSize);
     //might need to do stuff to the translation entry?
     
     pageLocations.put(entry, spn);
+	return spn;
   }
   
 
@@ -86,7 +83,7 @@ public class VMKernel extends UserKernel {
   public static void sfRetrieve(TranslationEntry entry)
   {
     byte[] memory = Machine.processor().getMemory();
-    int pageSize = processor.pageSize;
+    int pageSize = Machine.processor().pageSize;
     int spn = pageLocations.get(entry);
     
     swapFile.read(spn*pageSize, memory, entry.ppn*pageSize, pageSize);
@@ -115,13 +112,10 @@ public class VMKernel extends UserKernel {
 				clockIndex = (clockIndex+1) % Machine.processor().getNumPhysPages();
 				continue;
 			}
-			if (invertedPageTable[clockIndex].used) {
-				invertedPageTable[clockIndex].used = false;
-				clockIndex = (clockIndex+1) % Machine.processor().getNumPhysPages();
-			}
-			else {
-				if (numPinnedPages == Machine.processor().getNumPhysPages()) {
-					cv.sleep();
+			if (invertedPageTable[clockIndex] != null) {
+				if (invertedPageTable[clockIndex].used) {
+					invertedPageTable[clockIndex].used = false;
+					clockIndex = (clockIndex+1) % Machine.processor().getNumPhysPages();
 				}
 				else {
 					//we found a page to evict
@@ -129,6 +123,10 @@ public class VMKernel extends UserKernel {
 					clockIndex = (clockIndex+1) % Machine.processor().getNumPhysPages();
 					break;
 				}
+			}
+			else {
+				clockIndex = (clockIndex+1) % Machine.processor().getNumPhysPages();
+				System.out.println("in an infinite loop " + clockIndex);
 			}
 		}
 		lock.release();
@@ -139,11 +137,18 @@ public class VMKernel extends UserKernel {
 		if (page.dirty) {
 			//if the page is not in the swapfile
 			if (page.vpn == -1) {
+				page.vpn = VMKernel.sfSave(page);
 				//append a page to the swapfile or create it if it dun exist
 				//what's that swapfile page's spn?
 				//page.vpn = thatpage's spn
+				//write to swap[vpn]
 			}
-			//write to swap[vpn] the data currently in physical memory[page.vpn]
+			//if the page is in the swapfile
+			else {
+				//does the same thing
+				VMKernel.sfSave(page);
+				//write to swap[vpn] the data currently in physical memory[page.vpn]
+			}
 			invertedPageTable[page.vpn].valid = false;
 		}	
 	}
@@ -168,13 +173,17 @@ public class VMKernel extends UserKernel {
 	private static VMProcess dummy1 = null;
 
 	private static final char dbgVM = 'v';
+	
+
  
   //number of pages on the disk
   private static int pgsOnDisk = 0;
  
-  private OpenFile swapFile;
+  private static OpenFile swapFile;
   //spn
-  private LinkedList<Integer> sfFreePages;
+  private static LinkedList<Integer> sfFreePages;
   //entry, spn
-  private HashMap<TranslationEntry, Integer> pageLocations;
+  private static HashMap<TranslationEntry, Integer> pageLocations;
+
+	private static int currPages = 0;
 }

@@ -42,21 +42,18 @@ public class VMProcess extends UserProcess {
 	protected boolean loadSections() {
     // use the code from UserProcess.loadSections without loading from COFF file
     // check for memory
-		if (numPages > Machine.processor().getNumPhysPages()) {
-			coff.close();
-			Lib.debug(dbgProcess, "\tinsufficient physical memory");
-			return false;
+		// initialize
+		// some are in COFF AND pageTable while some are not in COFF but ARE in pageTable, but all are initialized as invalid
+		// COFF is executable so ReadOnly
+		pageTable = new TranslationEntry[numPages];
+		//creates the page table inside of loadsections?
+		CoffSections = new int[numPages];
+		for (int i=0; i<numPages; i++) {
+		//vpn, spn, valid, readonly, used, dirty
+		pageTable[i] = new TranslationEntry(-1, -1, true, false, false, false);
+		pageTable[i].valid = false; //replace with setting as not valid
+		pageTable[i].readOnly = false;
 		}
-    // initialize
-    // some are in COFF AND pageTable while some are not in COFF but ARE in pageTable, but all are initialized as invalid
-    // COFF is executable so ReadOnly
-    pageTable = new TranslationEntry[numPages];
-    CoffSections = new int[numPages];
-    for (int i=0; i<numPages; i++) {
-      pageTable[i] = new TranslationEntry(i, -1, true, false, false, false);
-      pageTable[i].valid = false; //replace with setting as not valid
-      pageTable[i].readOnly = false;
-    }
 		for (int s = 0; s < coff.getNumSections(); s++) {
 			CoffSection section = coff.getSection(s);
 
@@ -65,11 +62,12 @@ public class VMProcess extends UserProcess {
 
 			for (int i = 0; i < section.getLength(); i++) {
 				int vpn = section.getFirstVPN() + i;
-        pageTable[vpn].readOnly = section.isReadOnly();
-        CoffSections[vpn]=s;// to match to the pageTable index that is set to readOnly to load in the case of a page fault
-        //set to s so that we can call loadPage later in a similar to way to initial implementation
-      }
-    }
+			pageTable[vpn].readOnly = section.isReadOnly();
+			System.out.println("COFF READ ONLY?: " + pageTable[vpn].readOnly);
+			CoffSections[vpn]=s;// to match to the pageTable index that is set to readOnly to load in the case of a page fault
+			//set to s so that we can call loadPage later in a similar to way to initial implementation
+			}
+		}
 		return true;
 	}
 
@@ -92,38 +90,69 @@ public class VMProcess extends UserProcess {
 
 		switch (cause) {
 		    case Processor.exceptionPageFault:
+			System.out.println("PAGE FAULT!!!: " + cause);
 			//eviction here
 			//if there are no free pages, access from VMKernel's parent, UserKernel
-				
+			if (VMKernel.freeAddrs.isEmpty()) {
 				VMKernel.evictPage(VMKernel.clockAlgorithm());
+			}
 		      //prepare requested page (once there is a free page)
 		      int badVPN = Machine.processor().readRegister(Processor.regBadVAddr);
 		      prepRequestedPage(badVPN/pageSize);//regBadVAddr gives you the bad VA register that page faulted, so divide by pageSize to get index(rounds down since int), like in hw3
+			
 		      break;
 		default:
+			System.out.println("DEFAULT EXCEPTION :(((((");
 			super.handleException(cause);
 			break;
 		}
 	}
 
 	
+	//call prepreqpage inside of read/write virt mem if vpn is invalid and check using .valid
+	//use the virt addr field to check
+	
+	//pinn
+	//if
+	//super
+	//unpin
 
   public void prepRequestedPage (int badVPN) {
-    //pageTable[badVPN] is invalid
-    //3 cases: fault on a code page, fault on a data page, fault on a stack page/args page
-    //how to tell difference between these 3 pages?
-    //first two cases, it is in the COFF file, and these files are readOnly true
-    if (pageTable[badVPN].readOnly==true) {
-      CoffSection section = coff.getSection(CoffSections[badVPN]);//CoffSections[badVPN]=s
-      section.loadPage(badVPN-section.getFirstVPN(), pageTable[badVPN].ppn);//badVPN-section.getFirstVPN=i from UserProcess's loadPage(i, ppn)
-    } 
-    //3rd case, so zero-fill
-    else {
-      byte[] memory = Machine.processor().getMemory();
-      Arrays.fill(memory, pageTable[badVPN].ppn*pageSize, pageTable[badVPN].ppn*pageSize + pageSize, (byte)0);
-    }
-    pageTable[badVPN].valid=true;
+	//pageTable[badVPN] is invalid
+	//3 cases: fault on a code page, fault on a data page, fault on a stack page/args page
+	//how to tell difference between these 3 pages?
+	//first two cases, it is in the COFF file, and these files are readOnly true
+
+	//lock
+	//use the free pages list to get a valid ppn	
+	//
+	//unlock
+
+	//use for the loop over each coff and check first vpn and length to check if within the coff
+	//if vpn inn coff load from coff, if not then 0 fill it
+
+
+	if (pageTable[badVPN].readOnly==true) {  //if page in coff call sectionloadPage()
+	//if () //LOOK AT THE PSEUDOCODE
+		CoffSection section = coff.getSection(CoffSections[badVPN]);//CoffSections[badVPN]=s
+		section.loadPage(badVPN-section.getFirstVPN(), pageTable[badVPN].ppn);//badVPN-section.getFirstVPN=i from UserProcess's loadPage(i, ppn)
+	} 
+	//3rd case, so zero-fill
+	else {
+		byte[] memory = Machine.processor().getMemory();
+		Arrays.fill(memory, pageTable[badVPN].ppn*pageSize, pageTable[badVPN].ppn*pageSize + pageSize, (byte)0);
+    	}
+
+
+	
+
+
+    	pageTable[badVPN].valid=true;
+	System.out.println("about to fill the IPT");
+	VMKernel.invertedPageTable[pageTable[badVPN].ppn] = pageTable[badVPN];
   }
+
+
 	/**
 	 * Transfer data from this process's virtual memory to the specified array.
 	 * This method handles address translation details. This method must
@@ -139,17 +168,27 @@ public class VMProcess extends UserProcess {
 	 * @return the number of bytes successfully transferred.
 	 */
 	public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) {
+		//check validity -> use the vaddr to access the page number
+		//thing is readvm can touch multiple pages
+		//for each page that it CAN read
+		//lenght/pagesize = number of pages = for loop iterations
+			//we need to check validity
+			//then if valid
+				//call rvm
+			//otherwise
+				//this page is the bad vpn
+				//pagefault with cause=1
 /*
 		Lib.assertTrue(offset >= 0 && length >= 0
 				&& offset + length <= data.length);
 */
     //checking for valid virtual page conditions
-    if (!(offset >= 0 && length >= 0 && offset + length <= data.length) ||
-        data==null ||
-        vaddr<0 ||
-        vaddr+length>pageTable.length*pageSize) {
-      return -1;
-    }
+		if (!(offset >= 0 && length >= 0 && offset + length <= data.length) ||
+			data==null ||
+			vaddr<0 ||
+			vaddr+length>pageTable.length*pageSize) {
+			return -1;
+		}
 
 		byte[] memory = Machine.processor().getMemory();
 
@@ -218,6 +257,7 @@ public class VMProcess extends UserProcess {
 		byte[] memory = Machine.processor().getMemory();
 
 		// for now, just assume that virtual addresses equal physical addresses
+		
 		if (vaddr < 0 || vaddr >= memory.length)
 			return 0;
 
