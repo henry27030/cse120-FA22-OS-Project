@@ -161,6 +161,7 @@ public class VMProcess extends UserProcess {
   	//if vpn inn coff load from coff, if not then 0 fill it
     Lock lock = new Lock();
     lock.acquire();
+	boolean readOnly = false;
     
     //System.out.println("Before:" + pageTable[badVPN].ppn);
 	//System.out.println("Free Pages by ppn");
@@ -178,13 +179,19 @@ public class VMProcess extends UserProcess {
       if (CoffSections[badVPN] != -1) {  //if page in coff call sectionloadPage()
   		  CoffSection section = coff.getSection(CoffSections[badVPN]);//CoffSections[badVPN]=s
   		  section.loadPage(badVPN-section.getFirstVPN(), pageTable[badVPN].ppn);//badVPN-section.getFirstVPN=i from UserProcess's loadPage(i, ppn)
-  	  }
+  	  	readOnly = section.isReadOnly();	
+}
   	  else{
   		  byte[] memory = Machine.processor().getMemory();
   		  Arrays.fill(memory, pageTable[badVPN].ppn*pageSize, pageTable[badVPN].ppn*pageSize + pageSize, (byte)0);
    	  }
     }
-	pageTable[badVPN].dirty = true;
+	if (readOnly == true) {
+		pageTable[badVPN].dirty = false;
+	}
+	else {
+		pageTable[badVPN].dirty = true;
+	}
     
  	  pageTable[badVPN].valid=true;
   	//System.out.println("about to fill the IPT");
