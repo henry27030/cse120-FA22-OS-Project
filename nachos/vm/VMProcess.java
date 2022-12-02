@@ -47,13 +47,13 @@ public class VMProcess extends UserProcess {
 		// COFF is executable so ReadOnly
 		pageTable = new TranslationEntry[numPages];
    
-		//creates the page table inside of loadsections?
+
 		CoffSections = new int[numPages];
     Arrays.fill(CoffSections, -1);
    
 		for (int i=0; i<numPages; i++) {
 		  //vpn, spn, valid, readonly, used, dirty
-		  pageTable[i] = new TranslationEntry(-1, -1, true, false, false, false);
+		  pageTable[i] = new TranslationEntry(-1, -1, false, false, false, false);
 		  pageTable[i].valid = false; //replace with setting as not valid
 		  pageTable[i].readOnly = false;
 		}
@@ -95,6 +95,7 @@ public class VMProcess extends UserProcess {
 
 		switch (cause) {
 		    case Processor.exceptionPageFault:
+				//pageTablePrinter();
 			    pageFault(cause, Machine.processor().readRegister(Processor.regBadVAddr));
 			
 		      break;
@@ -103,6 +104,14 @@ public class VMProcess extends UserProcess {
 			super.handleException(cause);
 			break;
 		}
+	}
+
+	public void pageTablePrinter() {
+		System.out.println("PAGETABLE START:");
+		for (int i = 0; i < pageTable.length; i++) {
+			System.out.println("vpn: " + i + " ppn: " + pageTable[i].ppn + " valid: " + pageTable[i].valid);
+		}
+		System.out.println("PAGETABLE END:");
 	}
  
   public void pageFault(int cause, int badVPN)
@@ -143,10 +152,12 @@ public class VMProcess extends UserProcess {
     Lock lock = new Lock();
     lock.acquire();
     
-    //System.out.println("Before:" + pageTable[badVPN].ppn);
-    //System.out.println(VMKernel.freeAddrs);
+    System.out.println("Before:" + pageTable[badVPN].ppn);
+	System.out.println("Free Pages by ppn");
+    System.out.println(VMKernel.freeAddrs);
     pageTable[badVPN].ppn = VMKernel.acquirePage();
-    //System.out.println("After:" + pageTable[badVPN].ppn);
+    System.out.println("After:" + pageTable[badVPN].ppn);
+
   
     if(pageTable[badVPN].dirty == true)
     {
@@ -167,6 +178,10 @@ public class VMProcess extends UserProcess {
  	  pageTable[badVPN].valid=true;
   	//System.out.println("about to fill the IPT");
   	VMKernel.invertedPageTable[pageTable[badVPN].ppn] = pageTable[badVPN];
+	pageTablePrinter();
+	//problem the same ppn is being mapped to different vpn's
+	//swap 4 only needs 19 pages
+	//should have 19 page faults to fill those pages
     lock.release();
   }
 
@@ -211,9 +226,10 @@ public class VMProcess extends UserProcess {
 		byte[] memory = Machine.processor().getMemory();
 
 		// for now, just assume that virtual addresses equal physical addresses
-		if (vaddr < 0 || vaddr >= memory.length)
-			return 0;
-
+		//if (vaddr < 0 || vaddr >= memory.length){
+		//	System.out.println("RETURNING EARLY rvm");
+		//	return 0;
+		//}
 		int amount = Math.min(length, memory.length - vaddr);
 		//System.arraycopy(memory, vaddr, data, offset, amount);
 
@@ -285,9 +301,10 @@ public class VMProcess extends UserProcess {
 
 		// for now, just assume that virtual addresses equal physical addresses
 		
-		if (vaddr < 0 || vaddr >= memory.length)
-			return 0;
-
+		//if (vaddr < 0 || vaddr >= memory.length){
+		//	System.out.println("RETURNING EARLY wvm");
+		//	return 0;
+		//}
 		int amount = Math.min(length, memory.length - vaddr);
     //System.out.println(pageTable[vaddr/pageSize].ppn + (vaddr%pageSize));
 		//System.arraycopy(data, offset, memory, vaddr, amount);
