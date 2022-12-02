@@ -58,7 +58,13 @@ public class VMKernel extends UserKernel {
   //return: spn
   public static int sfSave(TranslationEntry entry)
   {
-    int spn = sfFreePages.removeFirst();
+    int spn = 0;
+    if (pageLocations.get(entry) != null) {
+        spn = pageLocations.get(entry);
+    }
+    else {
+        spn = sfFreePages.removeFirst();
+    }
     
     if(sfFreePages.isEmpty())
     {
