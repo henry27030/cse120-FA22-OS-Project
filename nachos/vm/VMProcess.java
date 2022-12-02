@@ -68,7 +68,7 @@ public class VMProcess extends UserProcess {
 			for (int i = 0; i < section.getLength(); i++) {
 			  int vpn = section.getFirstVPN() + i;
 			  pageTable[vpn].readOnly = section.isReadOnly();
-			  System.out.println("COFF READ ONLY?: " + pageTable[vpn].readOnly);
+			  //System.out.println("COFF READ ONLY?: " + pageTable[vpn].readOnly);
 			  CoffSections[vpn]=s;// to match to the pageTable index that is set to readOnly to load in the case of a page fault
 			  //set to s so that we can call loadPage later in a similar to way to initial implementation
 			}
@@ -80,7 +80,17 @@ public class VMProcess extends UserProcess {
 	 * Release any resources allocated by <tt>loadSections()</tt>.
 	 */
 	protected void unloadSections() {
-		super.unloadSections();
+		//super.unloadSections();
+		for(int i = 0; i < pageTable.length; i++)
+		{
+			if(pageTable[i].valid == true)
+		{
+			VMKernel.evictPage(pageTable[i]);
+			//UserKernel.releasePage(pageTable[i].ppn);
+			//pageTable[i].valid = false;
+			//UserKernel.releasePage(-9);
+		}
+    }
 	}
 
 	/**
@@ -152,12 +162,12 @@ public class VMProcess extends UserProcess {
     Lock lock = new Lock();
     lock.acquire();
     
-    System.out.println("Before:" + pageTable[badVPN].ppn);
-	System.out.println("Free Pages by ppn");
-    System.out.println(VMKernel.freeAddrs);
+    //System.out.println("Before:" + pageTable[badVPN].ppn);
+	//System.out.println("Free Pages by ppn");
+    //System.out.println(VMKernel.freeAddrs);
     pageTable[badVPN].ppn = VMKernel.acquirePage();
-    System.out.println("After:" + pageTable[badVPN].ppn);
-
+    //System.out.println("After:" + pageTable[badVPN].ppn);
+	
   
     if(pageTable[badVPN].dirty == true)
     {
@@ -174,11 +184,12 @@ public class VMProcess extends UserProcess {
   		  Arrays.fill(memory, pageTable[badVPN].ppn*pageSize, pageTable[badVPN].ppn*pageSize + pageSize, (byte)0);
    	  }
     }
+	pageTable[badVPN].dirty = true;
     
  	  pageTable[badVPN].valid=true;
   	//System.out.println("about to fill the IPT");
   	VMKernel.invertedPageTable[pageTable[badVPN].ppn] = pageTable[badVPN];
-	pageTablePrinter();
+	//pageTablePrinter();
 	//problem the same ppn is being mapped to different vpn's
 	//swap 4 only needs 19 pages
 	//should have 19 page faults to fill those pages
@@ -225,7 +236,7 @@ public class VMProcess extends UserProcess {
 
 		byte[] memory = Machine.processor().getMemory();
 
-		// for now, just assume that virtual addresses equal physical addresses
+		 //for now, just assume that virtual addresses equal physical addresses
 		//if (vaddr < 0 || vaddr >= memory.length){
 		//	System.out.println("RETURNING EARLY rvm");
 		//	return 0;

@@ -136,20 +136,22 @@ public class VMKernel extends UserKernel {
 	public static void evictPage(TranslationEntry page) {
 		
     if (page.dirty) {
+		VMKernel.sfSave(page);
+		
 			//if the page is not in the swapfile
-			if (page.valid == false) {
-				page.vpn = VMKernel.sfSave(page);
+			//if (page.valid == false) {
+				//page.vpn = VMKernel.sfSave(page);
 				//append a page to the swapfile or create it if it dun exist
 				//what's that swapfile page's spn?
 				//page.vpn = thatpage's spn
 				//write to swap[vpn]
-			}
+			//}
 			//if the page is in the swapfile
-			else {
+			//else {
 				//does the same thing
-				VMKernel.sfSave(page);
+				//VMKernel.sfSave(page);
 				//write to swap[vpn] the data currently in physical memory[page.vpn]
-			}
+			//}
 		}
     invertedPageTable[page.ppn].valid = false;
     freeAddrs.addLast(page.ppn);

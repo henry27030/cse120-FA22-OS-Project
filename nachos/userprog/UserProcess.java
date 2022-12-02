@@ -402,6 +402,8 @@ public class UserProcess {
       if(pageTable[i].valid == true)
       {
         UserKernel.releasePage(pageTable[i].ppn);
+	pageTable[i].valid = false;
+	//UserKernel.releasePage(-9);
       }
     }
 	}
