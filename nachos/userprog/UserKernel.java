@@ -152,7 +152,7 @@ public class UserKernel extends ThreadedKernel {
 	private static Coff dummy1 = null;
  
   //creation of linked list for physical addresses
-  private static LinkedList<Integer> freeAddrs;
+  public static LinkedList<Integer> freeAddrs;
   
-  private static Lock lock;
+  public static Lock lock;
 }

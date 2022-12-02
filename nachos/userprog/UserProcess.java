@@ -399,7 +399,12 @@ public class UserProcess {
     //simply releases all pages used by the pageTable.
     for(int i = 0; i < pageTable.length; i++)
     {
-      UserKernel.releasePage(pageTable[i].ppn);
+      if(pageTable[i].valid == true)
+      {
+        UserKernel.releasePage(pageTable[i].ppn);
+	pageTable[i].valid = false;
+	//UserKernel.releasePage(-9);
+      }
     }
 	}
 
